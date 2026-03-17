@@ -117,12 +117,12 @@ function hideToolStatus() {
   document.getElementById('fetch-status')?.classList.remove('visible');
 }
 
-/** Show a tool-call indicator block inside the bubble. */
-function showToolInBubble(bubble, url) {
+/** Show a tool-call indicator inside the bubble with the given status message. */
+function showToolInBubble(bubble, statusMsg) {
   bubble.innerHTML = '';
   const div = document.createElement('div');
   div.className   = 'tool-call-indicator';
-  div.textContent = `🔗 ${t('toolFetching').replace('{url}', url)}`;
+  div.textContent = statusMsg;
   bubble.appendChild(div);
 }
 
@@ -259,10 +259,10 @@ async function sendMessage() {
 
           let statusMsg, logIcon, logDetail;
           if (call.function.name === 'web_fetch') {
-            statusMsg = t('toolFetching').replace('{url}', args.url || '');
+            statusMsg = `🔗 ${t('toolFetching').replace('{url}', args.url || '')}`;
             logIcon   = '🔗'; logDetail = args.url || '';
           } else if (call.function.name === 'web_search') {
-            statusMsg = t('toolSearching').replace('{query}', args.query || '');
+            statusMsg = `🔍 ${t('toolSearching').replace('{query}', args.query || '')}`;
             logIcon   = '🔍'; logDetail = args.query || '';
           } else if (call.function.name === 'read_file') {
             statusMsg = t('toolReadFile');
