@@ -27,4 +27,5 @@ exec llama-server \
     --n-gpu-layers "$N_GPU_LAYERS" \
     --ctx-size "$N_CTX" \
     --batch-size "$N_BATCH" \
+    --flash-attn \
     --chat-template chatml
