@@ -12,16 +12,20 @@ const clearBtn       = document.getElementById('clear-btn');
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsBar    = document.getElementById('settings-bar');
 const langSelect     = document.getElementById('lang-select');
+const thinkBtn       = document.getElementById('think-btn');
 
 let history         = [];
 let abortController = null;
+let thinkingEnabled = false;
 
 // ── Startup: load settings → detect / restore language → apply ────────────────
-const savedLang = loadSettings();
-const initLang  = savedLang || detectLang();
+const { lang: savedLang, thinking: savedThinking } = loadSettings();
+thinkingEnabled  = savedThinking ?? false;
+const initLang   = savedLang || detectLang();
 setLang(initLang);
 langSelect.value = initLang;
 applyLang();
+updateThinkBtn();
 checkHealth();
 setInterval(checkHealth, 10000);
 
@@ -29,8 +33,22 @@ setInterval(checkHealth, 10000);
 langSelect.addEventListener('change', () => {
   setLang(langSelect.value);
   applyLang();
+  updateThinkBtn();
   checkHealth();   // re-render status text in new language
   saveSettings();
+});
+
+// ── Think toggle ──────────────────────────────────────────────────────────────
+function updateThinkBtn() {
+  thinkBtn.dataset.i18n = thinkingEnabled ? 'thinkOn' : 'thinkOff';
+  thinkBtn.textContent  = t(thinkBtn.dataset.i18n);
+  thinkBtn.classList.toggle('active', thinkingEnabled);
+}
+
+thinkBtn.addEventListener('click', () => {
+  thinkingEnabled = !thinkingEnabled;
+  updateThinkBtn();
+  saveSettings(thinkingEnabled);
 });
 
 // ── Settings panel ────────────────────────────────────────────────────────────
@@ -68,8 +86,10 @@ async function sendMessage() {
   inputEl.value = '';
   inputEl.style.height = 'auto';
 
-  history.push({ role: 'user', content: text });
-  appendMessage('user').textContent = text;
+  const token   = thinkingEnabled ? '/think' : '/no_think';
+  const payload = `${token}\n${text}`;
+  history.push({ role: 'user', content: payload });
+  appendMessage('user').textContent = text;  // display without token
 
   const bubble = appendMessage('assistant');
   bubble.classList.add('cursor');

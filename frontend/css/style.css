@@ -74,6 +74,11 @@ header .actions {
   transition: color 0.2s, border-color 0.2s;
 }
 .btn-icon:hover { color: var(--text); border-color: #444; }
+.btn-think.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(124,106,247,0.1);
+}
 
 /* ── Language selector ────────────────────────────────────────────────────── */
 #lang-select {
