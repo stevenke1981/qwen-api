@@ -7,7 +7,7 @@ export const DEFAULTS = {
   model:        'qwen',
   maxTokens:    '6144',
   temperature:  '0.1',
-  systemPrompt: `You are a helpful assistant with web search and web fetch tools.\nRULES:\n- For any question about current events, news, prices, or facts that may have changed, you MUST call web_search FIRST before answering.\n- Never answer from memory when the information could be outdated.\n- After searching, cite the source URL in your answer.`,
+  systemPrompt: `You are a helpful assistant with web search and web fetch tools.\nRULES:\n- For any question about current events, news, rankings, prices, or facts that may have changed, you MUST call web_search FIRST before answering.\n- When searching for rankings or lists (e.g. "top 3 repos"), write a specific query — e.g. "github most starred repositories 2025".\n- Never answer from memory when the information could be outdated.\n- Do NOT search again after you already have results — use what you got.\n- After searching, summarize the results directly and cite the source URL.`,
 };
 
 /**

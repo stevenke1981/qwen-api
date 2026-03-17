@@ -170,6 +170,8 @@ URL format is flexible — `example.com`, `www.site.com`, and `https://example.c
 User message → model requests tool → frontend executes → result returned → model answers
 ```
 
+> Tool calling requires `--jinja` flag in `start.sh` (already set) and a freshly built `llama-server` (`bash 04b_build_llama_cpp.sh`).
+
 ### LAN Access
 
 Set **API Server** in Settings to your server's LAN IP (e.g. `http://192.168.80.60:8000`).

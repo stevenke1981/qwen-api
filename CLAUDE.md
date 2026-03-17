@@ -10,7 +10,7 @@ A **local OpenAI-compatible LLM server** running Qwen3.5-9B via llama.cpp (CUDA)
 
 - **Backend**: `llama-server` (llama.cpp native binary, port 8000) + `fetch_proxy.py` (FastAPI, port 8001)
 - **Frontend**: Pure ES Modules, no bundler — served via `python -m http.server 3000`
-- **Platform**: Ubuntu 24.04 server (NVIDIA RTX 3060 12 GB), frontend accessed from Windows browser
+- **Platform**: Ubuntu 24.04 server (NVIDIA RTX 3060 12 GB), frontend accessed from Windows browser via LAN
 
 ---
 
@@ -18,12 +18,11 @@ A **local OpenAI-compatible LLM server** running Qwen3.5-9B via llama.cpp (CUDA)
 
 ```bash
 # On Linux server
-bash start.sh            # starts llama-server (port 8000) + fetch_proxy (port 8001)
+bash start.sh                 # starts llama-server (port 8000) + fetch_proxy (port 8001)
 
-# On Windows client (or Linux)
-frontend\start_frontend.bat   # Windows
-bash frontend/serve.sh        # Linux/macOS
-# then open http://localhost:3000
+# Frontend (Linux or Windows)
+bash frontend/serve.sh        # Linux/macOS → http://localhost:3000
+frontend\start_frontend.bat   # Windows    → http://localhost:3000
 ```
 
 ---
@@ -47,9 +46,9 @@ Linux Server
   ├── start.sh                     Launches llama-server + fetch_proxy
   ├── fetch_proxy.py               FastAPI proxy (CORS bypass)
   │     POST /fetch                → fetch URL, strip HTML, return plain text
-  │     POST /search               → DuckDuckGo search + auto-fetch top 2 pages
-  └── llama-server                 OpenAI-compatible API (llama.cpp)
-        POST /v1/chat/completions  streaming, tool_calls support
+  │     POST /search               → DuckDuckGo search (asyncio.to_thread) + auto-fetch top 2 pages
+  └── llama-server                 OpenAI-compatible API (llama.cpp, built from source)
+        POST /v1/chat/completions  streaming, tool_calls via --jinja
 ```
 
 ---
@@ -58,7 +57,7 @@ Linux Server
 
 ```
 User sends message
-  → chat.js sends to /v1/chat/completions with TOOLS array
+  → chat.js sends to /v1/chat/completions with TOOLS array + tool_choice:'auto'
   → if finish_reason === "tool_calls":
       → executeTool() called for each tool
       → result pushed as role:"tool" message
@@ -82,26 +81,29 @@ User sends message
 
 ### `start.sh`
 - Loads `.env` config
-- Starts `fetch_proxy.py` in background (trap for cleanup)
-- Runs `llama-server` with: `--flash-attn`, `--cache-type-k/v q8_0`, `--ctx-size 32768`, `--batch-size 1024`
-- **Requires** `--tool-call-parser qwen` (already added) for tool calling to work
+- Installs fetch proxy deps into `.venv` via `uv pip install` if missing
+- Starts `.venv/bin/python3 fetch_proxy.py 8001` in background (trap for cleanup)
+- Runs `llama-server` with: `--flash-attn on`, `--jinja`, `--cache-type-k/v q8_0`, `--ctx-size 32768`, `--batch-size 1024`
+- **Tool calling** enabled via `--jinja` (Jinja template engine, replaces old `--tool-call-parser`)
 
 ### `fetch_proxy.py`
 - FastAPI with CORS `allow_origins=["*"]`
 - `/fetch`: streams URL, BeautifulSoup strip, returns `{url, title, text, truncated, total_chars}`
-- `/search`: DDGS().text() + parallel `_fetch_text()` for top N results → returns `full_text` field
+- `/search`: runs `DDGS().text()` via `asyncio.to_thread()` with 20s timeout (non-blocking), parallel `_fetch_text()` for top N results
+- Debug prints at each step (`[search] ...`) — visible in `start.sh` terminal
 
 ### `frontend/js/chat.js`
 - `streamCall()`: streams SSE, accumulates `tool_calls` delta chunks by index
-- `sendMessage()`: tool-calling while-loop, builds `toolLogHtml`, appends lang instruction to system prompt
+- `sendMessage()`: tool-calling while-loop with round/debug logging, builds `toolLogHtml`, appends lang instruction to system prompt
+- `showToolInBubble(bubble, statusMsg)`: shows pulsing card with correct emoji (🔍/🔗) during tool execution
 - Export button: converts `history[]` to markdown, triggers Blob download
 - Reset button: calls `resetSettings()`, clears localStorage
 
 ### `frontend/js/settings.js`
-- `DEFAULTS`: hardcoded defaults (temperature=0.1, system prompt with search rules)
-- `loadSettings()`: fills form from localStorage
+- `DEFAULTS`: hardcoded defaults including refined system prompt with search rules
+- `loadSettings()`: fills form from localStorage, returns `{ lang, thinking }`
 - `resetSettings()`: clears localStorage, restores DEFAULTS
-- `saveSettings(thinking)`: persists all form values
+- `saveSettings(thinking)`: persists all form values; `thinking` param is optional (reads prev value if omitted)
 
 ### `frontend/js/i18n.js`
 - `TRANSLATIONS`: EN / zh-TW / zh-CN / ja — all keys must exist in all 4 langs
@@ -110,7 +112,7 @@ User sends message
 
 ### `frontend/js/render.js`
 - `renderContent(bubble, text, streaming, showThinking)`: parses fenced code blocks + `<think>` blocks
-- Code blocks: syntax-highlighted header, one-click copy, fallback execCommand
+- Code blocks: syntax-highlighted header, one-click copy
 - Think blocks: collapsed by default, click to expand
 
 ### `frontend/js/tools.js`
@@ -124,7 +126,7 @@ User sends message
 ## Configuration (`.env`)
 
 ```env
-MODEL_PATH=~/models/Qwen_Qwen3.5-9B-Q5_K_M.gguf
+MODEL_PATH=/home/steven/models/Qwen_Qwen3.5-9B-Q5_K_M.gguf
 HOST=0.0.0.0
 PORT=8000
 N_GPU_LAYERS=-1
@@ -145,27 +147,33 @@ CACHE_TYPE_V=q8_0
 | Model | `qwen` |
 | Max Tokens | `6144` |
 | Temperature | `0.1` |
-| System Prompt | Search-first rules (see DEFAULTS in settings.js) |
+| System Prompt | Search-first rules — search before answering, specific queries, no repeat search, cite URLs |
 
 ---
 
 ## Known Issues / Pending
 
-### Tool calling not working
-**Symptom**: Model says "I cannot browse the web" instead of calling `web_search`.
-**Cause**: `--tool-call-parser` flag — must restart `start.sh` after adding it.
-**Fix already applied** in `start.sh`: `--tool-call-parser qwen`
-**Verify**: Open DevTools → Network → `chat/completions` response → check `finish_reason`
-- `"tool_calls"` = working ✅
-- `"stop"` = parser not recognizing tool calls ❌ (try `--tool-call-parser generic`)
+### Tool calling — how it works now
+- `--tool-call-parser` was removed from newer llama.cpp
+- Tool calling now works via `--jinja` (Jinja template engine, enabled by default)
+- Removing `--chat-template chatml` was required — it was overriding the model's built-in Jinja template
+- Verify tool calling: DevTools → Network → `chat/completions` → check `finish_reason: "tool_calls"`
 
-### If `--tool-call-parser` flag not recognized
-Your llama-server version may be too old. Check:
+### If tool calling stops working after rebuild
 ```bash
-llama-server --help | grep tool-call-parser
-llama-server --version
+llama-server --help | grep jinja
 ```
-Rebuild from source: `bash 04b_build_llama_cpp.sh`
+Should show `--jinja, --no-jinja`. If missing, rebuild: `bash 04b_build_llama_cpp.sh`
+
+### fetch_proxy.py dependencies
+- Must use `.venv/bin/python3` to run (not system `python3`)
+- `uv pip install` puts packages in `.venv`, not system Python
+- Deps: `httpx beautifulsoup4 fastapi[standard] duckduckgo-search uvicorn`
+
+### Debug logging (temporary)
+- `fetch_proxy.py`: prints `[search] ...` steps to terminal — remove when stable
+- `frontend/js/chat.js`: `console.debug('[tool-loop] ...')` — remove when stable
+- `frontend/js/webfetch.js`: `console.debug('[searchWeb] ...')` — remove when stable
 
 ---
 
@@ -175,11 +183,12 @@ Rebuild from source: `bash 04b_build_llama_cpp.sh`
 |---------|-------|
 | Multilingual | Header `<select>` → EN/繁中/简中/日本語, auto-detect from browser |
 | Language-matched replies | `getLangInstruction()` appended to system prompt on each send |
-| Thinking mode | Header toggle, prepends `/think` or `/no_think` to user message |
+| Thinking mode | Header toggle (`Think: ON/OFF`), prepends `/think` or `/no_think` to user message |
+| Tool status | Pulsing card in bubble during tool execution (🔍 Searching / 🔗 Fetching) |
+| Tool call log | Shown at top of bubble after response (🔍🔗📄💾) |
 | Quote messages | Hover message → Quote button; select text for partial quote |
 | Export chat | Header Export button → downloads `chat-export-YYYY-MM-DD.md` |
 | Reset settings | Settings panel → Reset defaults button |
-| Tool call log | Shown at top of assistant bubble after response (🔍🔗📄💾) |
 | Health indicator | Header dot (green=online, red=offline), polls every 10s |
 | Code blocks | Syntax highlighted, copy button with `copied!` feedback |
 | Streaming | Real-time token display with blinking cursor |
@@ -192,11 +201,13 @@ Rebuild from source: `bash 04b_build_llama_cpp.sh`
 qwen-api/
 ├── CLAUDE.md                  ← this file
 ├── README.md
+├── CHANGELOG.md
 ├── HOW1.md                    performance tuning notes
-├── HOW2.md                    (未使用)
+├── HOW2.md
 ├── start.sh                   server startup
 ├── fetch_proxy.py             CORS proxy + search
-├── .env.example
+├── .env / .env.example
+├── build_essential.sh         install cmake/gcc
 ├── 01_install_nvidia_driver.sh
 ├── 02_install_cuda.sh
 ├── 03_install_python.sh
