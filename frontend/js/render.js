@@ -20,6 +20,35 @@ export function appendMessage(role) {
   bubble.className = 'msg-bubble';
   wrap.appendChild(bubble);
 
+  // Quote button (user & assistant only)
+  if (role !== 'system') {
+    const quoteBtn = document.createElement('button');
+    quoteBtn.className   = 'quote-btn';
+    quoteBtn.textContent = t('quote');
+    quoteBtn.title       = t('quoteHint');
+    quoteBtn.addEventListener('click', () => {
+      const sel = window.getSelection();
+      let quoted;
+      // Use selected text if it's inside this bubble
+      if (sel && sel.toString().trim() && bubble.contains(sel.anchorNode)) {
+        quoted = sel.toString().trim();
+      } else {
+        const full = bubble.innerText.trim();
+        quoted = full.length > 200 ? full.slice(0, 200) + '…' : full;
+      }
+      // Format as block-quote lines
+      const lines   = quoted.split('\n').map(l => `> ${l}`).join('\n');
+      const inputEl = document.getElementById('user-input');
+      inputEl.value = lines + '\n\n' + inputEl.value;
+      inputEl.focus();
+      // Move cursor to end of quote block so user can type right after
+      const pos = lines.length + 2;
+      inputEl.setSelectionRange(pos, pos);
+      inputEl.dispatchEvent(new Event('input'));  // trigger auto-resize
+    });
+    wrap.appendChild(quoteBtn);
+  }
+
   messagesEl.appendChild(wrap);
   scrollBottom();
   return bubble;
@@ -79,10 +108,10 @@ function createCodeBlock(lang, code) {
 /**
  * Render assistant text into `bubble`, handling:
  *   - fenced code blocks  (```lang\ncode\n```)
- *   - <think>…</think> blocks
+ *   - <think>…</think> blocks (only when showThinking=true)
  *   - streaming cursor on the last text segment
  */
-export function renderContent(bubble, text, streaming) {
+export function renderContent(bubble, text, streaming, showThinking = true) {
   bubble.innerHTML = '';
 
   // Split by fenced code blocks
@@ -114,6 +143,8 @@ export function renderContent(bubble, text, streaming) {
 
     parts.forEach((part, pi) => {
       if (part.startsWith('<think>')) {
+        if (!showThinking) return;  // skip think block when thinking is off
+
         const inner = part.replace(/^<think>/, '').replace(/<\/think>$/, '');
 
         const block  = document.createElement('div');

@@ -20,11 +20,20 @@ CACHE_TYPE_V="${CACHE_TYPE_V:-q8_0}"
 echo "=== 啟動 Qwen3.5-9B API ==="
 echo "模型：$MODEL_PATH"
 echo "位址：http://$HOST:$PORT"
-echo "文件：http://localhost:$PORT/docs"
 echo "Context：$N_CTX  KV cache：$CACHE_TYPE_K/$CACHE_TYPE_V"
 echo ""
 
-exec llama-server \
+# ── Fetch Proxy（port 8001）─────────────────────────────────────────────────
+echo "=== 啟動 Fetch Proxy (port 8001) ==="
+python3 -c "import httpx, bs4, fastapi" 2>/dev/null || \
+    pip3 install httpx beautifulsoup4 "fastapi[standard]" --quiet
+python3 fetch_proxy.py 8001 &
+PROXY_PID=$!
+trap "kill $PROXY_PID 2>/dev/null" EXIT INT TERM
+echo "Fetch Proxy PID: $PROXY_PID"
+echo ""
+
+llama-server \
     --model "$MODEL_PATH" \
     --host "$HOST" \
     --port "$PORT" \

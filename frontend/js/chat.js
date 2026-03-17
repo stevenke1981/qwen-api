@@ -2,6 +2,7 @@ import { getLang, setLang, detectLang, applyLang, t } from './i18n.js';
 import { loadSettings, saveSettings }                  from './settings.js';
 import { checkHealth }                                  from './health.js';
 import { appendMessage, renderContent, scrollBottom }  from './render.js';
+import { detectUrls, fetchPageText, buildFetchContext } from './webfetch.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const messagesEl     = document.getElementById('messages');
@@ -78,6 +79,15 @@ clearBtn.addEventListener('click', () => {
   messagesEl.innerHTML = `<div class="msg system"><div class="msg-bubble">${t('cleared')}</div></div>`;
 });
 
+// ── Fetch status bar ──────────────────────────────────────────────────────────
+function showFetchStatus(msg) {
+  const el = document.getElementById('fetch-status');
+  if (el) { el.textContent = msg; el.classList.add('visible'); }
+}
+function hideFetchStatus() {
+  document.getElementById('fetch-status')?.classList.remove('visible');
+}
+
 // ── Main send ─────────────────────────────────────────────────────────────────
 async function sendMessage() {
   const text = inputEl.value.trim();
@@ -86,10 +96,32 @@ async function sendMessage() {
   inputEl.value = '';
   inputEl.style.height = 'auto';
 
+  // ── Web fetch: detect URLs and pre-fetch content ──────────────────────────
+  const urls = detectUrls(text);
+  let contextText = text;
+
+  if (urls.length > 0) {
+    showFetchStatus(t('fetching').replace('{n}', urls.length));
+    sendBtn.disabled = true;
+
+    const results = [];
+    for (const url of urls) {
+      try {
+        results.push(await fetchPageText(url));
+      } catch (e) {
+        console.warn(`${t('fetchError')}: ${url}`, e.message);
+      }
+    }
+    hideFetchStatus();
+    sendBtn.disabled = false;
+    if (results.length > 0) contextText = text + '\n\n' + buildFetchContext(results);
+  }
+
+  // ── Build payload with think token ───────────────────────────────────────
   const token   = thinkingEnabled ? '/think' : '/no_think';
-  const payload = `${token}\n${text}`;
+  const payload = `${token}\n${contextText}`;
   history.push({ role: 'user', content: payload });
-  appendMessage('user').textContent = text;  // display without token
+  appendMessage('user').textContent = text;  // display original (no token / no web dump)
 
   const bubble = appendMessage('assistant');
   bubble.classList.add('cursor');
@@ -136,14 +168,14 @@ async function sendMessage() {
         if (!trimmed || trimmed === 'data: [DONE]' || !trimmed.startsWith('data: ')) continue;
         try {
           const delta = JSON.parse(trimmed.slice(6)).choices?.[0]?.delta?.content;
-          if (delta) { fullText += delta; renderContent(bubble, fullText, true); scrollBottom(); }
+          if (delta) { fullText += delta; renderContent(bubble, fullText, true, thinkingEnabled); scrollBottom(); }
         } catch { /* skip malformed chunks */ }
       }
     }
   } catch (e) {
     if (e.name !== 'AbortError') bubble.textContent = `Request failed: ${e.message}`;
   } finally {
-    renderContent(bubble, fullText, false);
+    renderContent(bubble, fullText, false, thinkingEnabled);
     bubble.classList.remove('cursor');
     if (fullText) history.push({ role: 'assistant', content: fullText });
 
