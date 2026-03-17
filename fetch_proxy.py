@@ -96,6 +96,35 @@ async def fetch(req: FetchReq):
 class SearchReq(BaseModel):
     query:       str
     max_results: int = 5
+    fetch_top:   int = 2   # auto-fetch full text of top N results (0 = off)
+
+
+async def _fetch_text(client: httpx.AsyncClient, url: str, max_chars: int = 3000) -> str:
+    """Fetch a URL and return stripped plain text (best-effort)."""
+    try:
+        async with client.stream("GET", url, headers=HEADERS, timeout=10) as r:
+            r.raise_for_status()
+            content_type = r.headers.get("content-type", "")
+            raw = b""
+            async for chunk in r.aiter_bytes(8192):
+                raw += chunk
+                if len(raw) >= 512 * 1024:
+                    break
+        charset = "utf-8"
+        if "charset=" in content_type:
+            charset = content_type.split("charset=")[-1].strip().split(";")[0]
+        body = raw.decode(charset, errors="replace")
+        if "html" in content_type:
+            soup = BeautifulSoup(body, "html.parser")
+            for tag in soup(["script", "style", "nav", "footer", "aside", "header", "noscript"]):
+                tag.decompose()
+            text = soup.get_text(separator="\n", strip=True)
+            text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        else:
+            text = body.strip()
+        return text[:max_chars]
+    except Exception:
+        return ""
 
 
 @app.post("/search")
@@ -108,9 +137,22 @@ async def search(req: SearchReq):
     try:
         with DDGS() as ddgs:
             results = list(ddgs.text(req.query, max_results=req.max_results))
-        return {"query": req.query, "results": results}
     except Exception as e:
         raise HTTPException(502, f"Search failed: {e}")
+
+    # Auto-fetch full text for top N results (mimics ChatGPT/Gemini behavior)
+    if req.fetch_top > 0 and results:
+        async with httpx.AsyncClient(follow_redirects=True, max_redirects=5) as client:
+            import asyncio
+            texts = await asyncio.gather(*[
+                _fetch_text(client, r["href"])
+                for r in results[:req.fetch_top]
+            ])
+        for i, text in enumerate(texts):
+            if text:
+                results[i]["full_text"] = text
+
+    return {"query": req.query, "results": results}
 
 
 # ── main ──────────────────────────────────────────────────────────────────────

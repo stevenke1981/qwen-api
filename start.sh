@@ -44,4 +44,5 @@ llama-server \
     --cache-type-k "$CACHE_TYPE_K" \
     --cache-type-v "$CACHE_TYPE_V" \
     --flash-attn on \
+    --tool-call-parser qwen \
     --chat-template chatml

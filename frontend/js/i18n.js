@@ -31,6 +31,9 @@ const TRANSLATIONS = {
     toolSearching:    'Searching: {query}',
     toolReadFile:     'Opening file picker…',
     toolWriteFile:    'Saving: {filename}',
+    resetSettings:    'Reset defaults',
+    export:           'Export',
+    exportFilename:   'chat-export',
   },
   'zh-TW': {
     settings:         '設定',
@@ -63,6 +66,9 @@ const TRANSLATIONS = {
     toolSearching:    '搜尋：{query}',
     toolReadFile:     '開啟檔案選擇器…',
     toolWriteFile:    '儲存：{filename}',
+    resetSettings:    '還原預設值',
+    export:           '匯出',
+    exportFilename:   'chat-export',
   },
   'zh-CN': {
     settings:         '设置',
@@ -95,6 +101,9 @@ const TRANSLATIONS = {
     toolSearching:    '搜索：{query}',
     toolReadFile:     '打开文件选择器…',
     toolWriteFile:    '保存：{filename}',
+    resetSettings:    '恢复默认值',
+    export:           '导出',
+    exportFilename:   'chat-export',
   },
   ja: {
     settings:         '設定',
@@ -127,6 +136,9 @@ const TRANSLATIONS = {
     toolSearching:    '検索中：{query}',
     toolReadFile:     'ファイル選択を開きます…',
     toolWriteFile:    '保存中：{filename}',
+    resetSettings:    'デフォルトに戻す',
+    export:           'エクスポート',
+    exportFilename:   'chat-export',
   },
 };
 
@@ -159,6 +171,17 @@ export function detectLang() {
     if (l.startsWith('en'))                               return 'en';
   }
   return 'en';
+}
+
+/** Return a system-prompt instruction to reply in the current UI language. */
+export function getLangInstruction() {
+  const map = {
+    'en':    'Always respond in English.',
+    'zh-TW': '請一律使用繁體中文回答。',
+    'zh-CN': '请一律使用简体中文回答。',
+    'ja':    '必ず日本語で回答してください。',
+  };
+  return map[_lang] ?? map['en'];
 }
 
 /** Apply current language to all [data-i18n] elements and the input placeholder. */

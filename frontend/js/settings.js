@@ -2,6 +2,14 @@ import { getLang } from './i18n.js';
 
 const STORAGE_KEY = 'qwen_chat_settings';
 
+export const DEFAULTS = {
+  apiUrl:       'http://192.168.80.60:8000',
+  model:        'qwen',
+  maxTokens:    '6144',
+  temperature:  '0.1',
+  systemPrompt: `You are a helpful assistant with web search and web fetch tools.\nRULES:\n- For any question about current events, news, prices, or facts that may have changed, you MUST call web_search FIRST before answering.\n- Never answer from memory when the information could be outdated.\n- After searching, cite the source URL in your answer.`,
+};
+
 /**
  * Load saved settings into form fields.
  * Returns the saved language code (or null if none was saved).
@@ -18,6 +26,16 @@ export function loadSettings() {
   } catch {
     return { lang: null, thinking: false };
   }
+}
+
+/** Reset all settings to defaults and clear localStorage. */
+export function resetSettings() {
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('api-url').value       = DEFAULTS.apiUrl;
+  document.getElementById('model-name').value    = DEFAULTS.model;
+  document.getElementById('max-tokens').value    = DEFAULTS.maxTokens;
+  document.getElementById('temperature').value   = DEFAULTS.temperature;
+  document.getElementById('system-prompt').value = DEFAULTS.systemPrompt;
 }
 
 /** Persist current form values and active language to localStorage. */

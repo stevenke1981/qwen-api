@@ -124,7 +124,8 @@ export async function executeTool(name, argsStr) {
     results.forEach((r, i) => {
       lines.push(`${i + 1}. ${r.title}`);
       lines.push(`   URL: ${r.href}`);
-      if (r.body) lines.push(`   ${r.body}`);
+      if (r.body) lines.push(`   Summary: ${r.body}`);
+      if (r.full_text) lines.push(`   Content:\n${r.full_text}`);
       lines.push('');
     });
     return lines.join('\n');

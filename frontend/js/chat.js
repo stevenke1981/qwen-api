@@ -1,5 +1,5 @@
-import { setLang, detectLang, applyLang, t }           from './i18n.js';
-import { loadSettings, saveSettings }                   from './settings.js';
+import { setLang, detectLang, applyLang, t, getLangInstruction } from './i18n.js';
+import { loadSettings, saveSettings, resetSettings }     from './settings.js';
 import { checkHealth }                                   from './health.js';
 import { appendMessage, renderContent, scrollBottom }   from './render.js';
 import { TOOLS, executeTool }                            from './tools.js';
@@ -14,6 +14,7 @@ const settingsToggle = document.getElementById('settings-toggle');
 const settingsBar    = document.getElementById('settings-bar');
 const langSelect     = document.getElementById('lang-select');
 const thinkBtn       = document.getElementById('think-btn');
+const exportBtn      = document.getElementById('export-btn');
 
 let history         = [];
 let abortController = null;
@@ -58,6 +59,36 @@ settingsBar.querySelectorAll('input, textarea').forEach(el => {
     saveSettings();
     if (el.id === 'api-url') checkHealth();
   });
+});
+exportBtn.addEventListener('click', () => {
+  if (!history.length) return;
+  const date  = new Date().toISOString().slice(0, 10);
+  const lines = [`# Qwen3.5-9B Chat Export\n\n*${date}*\n`];
+  for (const msg of history) {
+    if (msg.role === 'user') {
+      // Strip /think or /no_think prefix before display
+      const text = msg.content.replace(/^\/(think|no_think)\n/, '');
+      lines.push(`\n---\n\n**${t('roleUser')}:**\n\n${text}`);
+    } else if (msg.role === 'assistant') {
+      lines.push(`\n**${t('roleAssistant')}:**\n\n${msg.content}`);
+    }
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `${t('exportFilename')}-${date}.md`,
+  });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('reset-settings-btn').addEventListener('click', () => {
+  resetSettings();
+  checkHealth();
+  saveSettings();
 });
 
 // ── Auto-resize textarea ──────────────────────────────────────────────────────
@@ -190,12 +221,15 @@ async function sendMessage() {
   const temperature  = parseFloat(document.getElementById('temperature').value);
   const systemPrompt = document.getElementById('system-prompt').value.trim();
 
-  // Messages sent to API (includes system prompt, excludes it from persistent history)
-  const messages = systemPrompt
-    ? [{ role: 'system', content: systemPrompt }, ...history]
-    : [...history];
+  // Messages sent to API — append language instruction to system prompt
+  const langInstruction = getLangInstruction();
+  const fullSystemPrompt = systemPrompt
+    ? `${systemPrompt}\n\n${langInstruction}`
+    : langInstruction;
+  const messages = [{ role: 'system', content: fullSystemPrompt }, ...history];
 
-  let finalText = '';
+  let finalText   = '';
+  let toolLogHtml = '';
 
   try {
     // ── Tool calling loop ───────────────────────────────────────────────────
@@ -216,18 +250,24 @@ async function sendMessage() {
           let args = {};
           try { args = JSON.parse(call.function.arguments || '{}'); } catch { /* */ }
 
-          let statusMsg;
+          let statusMsg, logIcon, logDetail;
           if (call.function.name === 'web_fetch') {
             statusMsg = t('toolFetching').replace('{url}', args.url || '');
+            logIcon   = '🔗'; logDetail = args.url || '';
           } else if (call.function.name === 'web_search') {
             statusMsg = t('toolSearching').replace('{query}', args.query || '');
+            logIcon   = '🔍'; logDetail = args.query || '';
           } else if (call.function.name === 'read_file') {
             statusMsg = t('toolReadFile');
+            logIcon   = '📄'; logDetail = 'read_file';
           } else if (call.function.name === 'write_file') {
             statusMsg = t('toolWriteFile').replace('{filename}', args.filename || '');
+            logIcon   = '💾'; logDetail = args.filename || '';
           } else {
             statusMsg = call.function.name;
+            logIcon   = '⚙️'; logDetail = call.function.name;
           }
+          toolLogHtml += `<div class="tool-log-item">${logIcon} <span>${call.function.name}</span>: ${logDetail}</div>`;
           showToolInBubble(bubble, statusMsg);
           showToolStatus(statusMsg);
 
@@ -254,6 +294,12 @@ async function sendMessage() {
     if (e.name !== 'AbortError') bubble.textContent = `Request failed: ${e.message}`;
   } finally {
     renderContent(bubble, finalText, false, thinkingEnabled);
+    if (toolLogHtml) {
+      const log = document.createElement('div');
+      log.className = 'tool-log';
+      log.innerHTML = toolLogHtml;
+      bubble.insertBefore(log, bubble.firstChild);
+    }
     bubble.classList.remove('cursor');
     hideToolStatus();
 
