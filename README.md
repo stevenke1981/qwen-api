@@ -31,12 +31,20 @@ bash 02_install_cuda.sh
 bash 03_install_python.sh
 ```
 
-### 4. Install Project Dependencies
+### 4. Install Python Dependencies
 
 Compiles `llama-cpp-python` from source with CUDA support — this takes a few minutes.
 
 ```bash
 bash 04_setup_project.sh
+```
+
+### 4b. Build llama.cpp Binaries (optional)
+
+Builds the llama.cpp C++ binaries (`llama-cli`, `llama-server`, `llama-bench`, `llama-quantize`) and installs them to `~/.local/bin`. Only needed if you want to use the CLI tools directly.
+
+```bash
+bash 04b_build_llama_cpp.sh
 ```
 
 ### 5. Download Model
