@@ -137,15 +137,20 @@ Open `http://localhost:3000` in your browser.
 
 | Feature | Description |
 |---------|-------------|
-| Streaming responses | Real-time token streaming |
-| Thinking mode toggle | Show / hide `<think>` blocks |
-| Collapsible thinking blocks | Collapsed by default |
-| Quote messages | Click or select text to quote into input |
+| Streaming responses | Real-time token streaming with blinking cursor |
+| Thinking mode toggle | Header button — prepends `/think` or `/no_think` per message |
+| Collapsible thinking blocks | `<think>` blocks rendered and collapsed by default |
+| Tool calling | Model autonomously calls web_search / web_fetch / read_file / write_file |
+| Tool call log | 🔍🔗📄💾 shown at top of bubble after response |
+| Quote messages | Hover → Quote button; select text for partial quote |
 | Code blocks | Syntax-highlighted with one-click copy |
+| Export chat | Downloads conversation as Markdown |
 | Multilingual UI | EN / 繁中 / 简中 / 日本語 (auto-detects browser language) |
-| Configurable settings | API server IP, model, temperature, max tokens, system prompt |
+| Language-matched replies | UI language instruction appended to system prompt automatically |
+| Configurable settings | API server, model, temperature, max tokens, system prompt |
+| Reset settings | Restore all defaults in one click |
 | Settings persistence | All settings saved to localStorage |
-| Health indicator | Online / Offline status with 10s polling |
+| Health indicator | Online / Offline dot, polls every 10s |
 
 ### Tool Calling (MCP-style)
 
@@ -172,13 +177,16 @@ The fetch proxy is automatically derived from the same host on port `8001`.
 
 ## Performance Notes
 
-See `HOW1.md` for detailed tuning guidance and a comparison of llama.cpp vs vLLM.
+See `HOW1.md` for detailed tuning guidance.
 
 Key settings already applied:
-- `--flash-attn` — reduces prefill memory access
+- `--flash-attn on` — reduces prefill memory access
+- `--jinja` — enables Jinja template engine for tool calling support
 - `N_BATCH=1024` — higher prefill throughput
 - `N_CTX=32768` — 32K context window
 - `CACHE_TYPE_K/V=q8_0` — quantized KV cache (saves ~40% VRAM)
+
+> Rebuild `llama-server` from source with `bash 04b_build_llama_cpp.sh` to ensure the latest llama.cpp features (Jinja tool calling, qwen35 architecture support).
 
 ## Optional: Python Bindings
 
