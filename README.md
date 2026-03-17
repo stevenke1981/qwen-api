@@ -1,16 +1,28 @@
 # qwen-api
 
-A local OpenAI-compatible API server for Qwen3.5-9B, powered by [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) with CUDA acceleration.
+A local OpenAI-compatible API server for Qwen3.5-9B, powered by [llama.cpp](https://github.com/ggerganov/llama.cpp) with CUDA acceleration.
 
 ## Requirements
 
 - Ubuntu (tested on 24.04)
-- NVIDIA GPU with CUDA support
+- NVIDIA GPU with CUDA support (tested on RTX 3060 12 GB)
 - ~7 GB disk space for the model
 
-## Setup
+## Workflow
 
-Run the numbered scripts in order. Each script is idempotent and will skip steps already completed.
+```
+01_install_nvidia_driver.sh   # Install NVIDIA driver → reboot
+02_install_cuda.sh            # Install CUDA toolkit
+build_essential.sh            # Install cmake, gcc, build tools
+03_install_python.sh          # Install Python 3.12 via uv
+04b_build_llama_cpp.sh        # Build llama.cpp binaries with CUDA
+05_download_model.sh          # Download Qwen3.5-9B GGUF (~6.86 GB)
+start.sh                      # Start the API server
+```
+
+> `04_setup_project.sh` installs the Python bindings (llama-cpp-python) and is optional — the server runs via the native `llama-server` binary.
+
+## Setup
 
 ### 1. Install NVIDIA Driver
 
@@ -25,29 +37,27 @@ bash 01_install_nvidia_driver.sh
 bash 02_install_cuda.sh
 ```
 
-### 3. Install Python (via uv)
+### 3. Install Build Tools
+
+```bash
+bash build_essential.sh
+```
+
+### 4. Install Python (via uv)
 
 ```bash
 bash 03_install_python.sh
 ```
 
-### 4. Install Python Dependencies
+### 5. Build llama.cpp Binaries
 
-Compiles `llama-cpp-python` from source with CUDA support — this takes a few minutes.
-
-```bash
-bash 04_setup_project.sh
-```
-
-### 4b. Build llama.cpp Binaries (optional)
-
-Builds the llama.cpp C++ binaries (`llama-cli`, `llama-server`, `llama-bench`, `llama-quantize`) and installs them to `~/.local/bin`. Only needed if you want to use the CLI tools directly.
+Compiles `llama-server`, `llama-cli`, `llama-bench`, and `llama-quantize` from source with CUDA support. Installs to `~/.local/bin`.
 
 ```bash
 bash 04b_build_llama_cpp.sh
 ```
 
-### 5. Download Model
+### 6. Download Model
 
 Downloads `Qwen_Qwen3.5-9B-Q5_K_M.gguf` (~6.86 GB) from Hugging Face.
 
@@ -94,3 +104,13 @@ curl http://localhost:8000/v1/chat/completions \
 ```
 
 Or point any OpenAI-compatible client at `http://localhost:8000`.
+
+## Optional: Python Bindings
+
+`04_setup_project.sh` installs `llama-cpp-python` with CUDA for use in Python scripts:
+
+```bash
+bash 04_setup_project.sh
+```
+
+> Note: the current release of llama-cpp-python bundles an older llama.cpp that does not support the `qwen35` architecture. Use the native `llama-server` binary (built by `04b_build_llama_cpp.sh`) to serve the model.
