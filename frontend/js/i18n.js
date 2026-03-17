@@ -26,8 +26,8 @@ const TRANSLATIONS = {
     statusError:      'Server error',
     quote:            'Quote',
     quoteHint:        'Select text to quote partially, or click to quote full message',
-    fetching:         'Fetching {n} URL(s)…',
     fetchError:       'Failed to fetch',
+    toolFetching:     'Fetching: {url}',
   },
   'zh-TW': {
     settings:         '設定',
@@ -55,8 +55,8 @@ const TRANSLATIONS = {
     statusError:      '伺服器錯誤',
     quote:            '引用',
     quoteHint:        '選取文字可部分引用，或點擊引用完整訊息',
-    fetching:         '抓取 {n} 個網址中…',
     fetchError:       '無法抓取',
+    toolFetching:     '抓取：{url}',
   },
   'zh-CN': {
     settings:         '设置',
@@ -84,8 +84,8 @@ const TRANSLATIONS = {
     statusError:      '服务器错误',
     quote:            '引用',
     quoteHint:        '选取文字可部分引用，或点击引用完整消息',
-    fetching:         '抓取 {n} 个网址中…',
     fetchError:       '无法抓取',
+    toolFetching:     '抓取：{url}',
   },
   ja: {
     settings:         '設定',
@@ -113,8 +113,8 @@ const TRANSLATIONS = {
     statusError:      'サーバーエラー',
     quote:            '引用',
     quoteHint:        'テキストを選択して部分引用、またはクリックで全文引用',
-    fetching:         '{n} 件のURLを取得中…',
     fetchError:       '取得失敗',
+    toolFetching:     '取得中：{url}',
   },
 };
 

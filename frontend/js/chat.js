@@ -1,8 +1,8 @@
-import { getLang, setLang, detectLang, applyLang, t } from './i18n.js';
-import { loadSettings, saveSettings }                  from './settings.js';
-import { checkHealth }                                  from './health.js';
-import { appendMessage, renderContent, scrollBottom }  from './render.js';
-import { detectUrls, fetchPageText, buildFetchContext } from './webfetch.js';
+import { setLang, detectLang, applyLang, t }           from './i18n.js';
+import { loadSettings, saveSettings }                   from './settings.js';
+import { checkHealth }                                   from './health.js';
+import { appendMessage, renderContent, scrollBottom }   from './render.js';
+import { TOOLS, executeTool }                            from './tools.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const messagesEl     = document.getElementById('messages');
@@ -19,7 +19,7 @@ let history         = [];
 let abortController = null;
 let thinkingEnabled = false;
 
-// ── Startup: load settings → detect / restore language → apply ────────────────
+// ── Startup ───────────────────────────────────────────────────────────────────
 const { lang: savedLang, thinking: savedThinking } = loadSettings();
 thinkingEnabled  = savedThinking ?? false;
 const initLang   = savedLang || detectLang();
@@ -35,7 +35,7 @@ langSelect.addEventListener('change', () => {
   setLang(langSelect.value);
   applyLang();
   updateThinkBtn();
-  checkHealth();   // re-render status text in new language
+  checkHealth();
   saveSettings();
 });
 
@@ -45,7 +45,6 @@ function updateThinkBtn() {
   thinkBtn.textContent  = t(thinkBtn.dataset.i18n);
   thinkBtn.classList.toggle('active', thinkingEnabled);
 }
-
 thinkBtn.addEventListener('click', () => {
   thinkingEnabled = !thinkingEnabled;
   updateThinkBtn();
@@ -54,7 +53,6 @@ thinkBtn.addEventListener('click', () => {
 
 // ── Settings panel ────────────────────────────────────────────────────────────
 settingsToggle.addEventListener('click', () => settingsBar.classList.toggle('open'));
-
 settingsBar.querySelectorAll('input, textarea').forEach(el => {
   el.addEventListener('change', () => {
     saveSettings();
@@ -79,13 +77,89 @@ clearBtn.addEventListener('click', () => {
   messagesEl.innerHTML = `<div class="msg system"><div class="msg-bubble">${t('cleared')}</div></div>`;
 });
 
-// ── Fetch status bar ──────────────────────────────────────────────────────────
-function showFetchStatus(msg) {
+// ── Tool status helpers ───────────────────────────────────────────────────────
+function showToolStatus(msg) {
   const el = document.getElementById('fetch-status');
   if (el) { el.textContent = msg; el.classList.add('visible'); }
 }
-function hideFetchStatus() {
+function hideToolStatus() {
   document.getElementById('fetch-status')?.classList.remove('visible');
+}
+
+/** Show a tool-call indicator block inside the bubble. */
+function showToolInBubble(bubble, url) {
+  bubble.innerHTML = '';
+  const div = document.createElement('div');
+  div.className   = 'tool-call-indicator';
+  div.textContent = `🔗 ${t('toolFetching').replace('{url}', url)}`;
+  bubble.appendChild(div);
+}
+
+// ── Streaming call with tool-call accumulation ────────────────────────────────
+/**
+ * One round of streaming chat completion with tool support.
+ * Returns { fullText, toolCalls[], finishReason }
+ */
+async function streamCall(apiBase, model, messages, maxTokens, temperature, bubble) {
+  const res = await fetch(`${apiBase}/v1/chat/completions`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal:  abortController.signal,
+    body: JSON.stringify({
+      model, messages, stream: true,
+      max_tokens: maxTokens, temperature,
+      tools: TOOLS, tool_choice: 'auto',
+    }),
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+
+  const reader      = res.body.getReader();
+  const decoder     = new TextDecoder();
+  let   fullText    = '';
+  let   toolCalls   = [];   // sparse array indexed by tc.index
+  let   finishReason = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    for (const line of decoder.decode(value, { stream: true }).split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed === 'data: [DONE]' || !trimmed.startsWith('data: ')) continue;
+
+      try {
+        const data   = JSON.parse(trimmed.slice(6));
+        const choice = data.choices?.[0];
+        if (!choice) continue;
+
+        if (choice.finish_reason) finishReason = choice.finish_reason;
+        const delta = choice.delta || {};
+
+        // Accumulate tool_calls chunks
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!toolCalls[idx]) {
+              toolCalls[idx] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+            }
+            if (tc.id)                  toolCalls[idx].id                  = tc.id;
+            if (tc.function?.name)      toolCalls[idx].function.name      += tc.function.name;
+            if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
+          }
+        }
+
+        // Stream text content
+        if (delta.content) {
+          fullText += delta.content;
+          renderContent(bubble, fullText, true, thinkingEnabled);
+          scrollBottom();
+        }
+      } catch { /* skip malformed chunks */ }
+    }
+  }
+
+  return { fullText, toolCalls: toolCalls.filter(Boolean), finishReason };
 }
 
 // ── Main send ─────────────────────────────────────────────────────────────────
@@ -96,32 +170,11 @@ async function sendMessage() {
   inputEl.value = '';
   inputEl.style.height = 'auto';
 
-  // ── Web fetch: detect URLs and pre-fetch content ──────────────────────────
-  const urls = detectUrls(text);
-  let contextText = text;
-
-  if (urls.length > 0) {
-    showFetchStatus(t('fetching').replace('{n}', urls.length));
-    sendBtn.disabled = true;
-
-    const results = [];
-    for (const url of urls) {
-      try {
-        results.push(await fetchPageText(url));
-      } catch (e) {
-        console.warn(`${t('fetchError')}: ${url}`, e.message);
-      }
-    }
-    hideFetchStatus();
-    sendBtn.disabled = false;
-    if (results.length > 0) contextText = text + '\n\n' + buildFetchContext(results);
-  }
-
-  // ── Build payload with think token ───────────────────────────────────────
+  // Build user message with think token
   const token   = thinkingEnabled ? '/think' : '/no_think';
-  const payload = `${token}\n${contextText}`;
+  const payload = `${token}\n${text}`;
   history.push({ role: 'user', content: payload });
-  appendMessage('user').textContent = text;  // display original (no token / no web dump)
+  appendMessage('user').textContent = text;
 
   const bubble = appendMessage('assistant');
   bubble.classList.add('cursor');
@@ -129,55 +182,71 @@ async function sendMessage() {
   sendBtn.style.display = 'none';
   stopBtn.style.display = 'inline-block';
   inputEl.disabled      = true;
+  abortController       = new AbortController();
 
-  abortController = new AbortController();
-
-  const base         = document.getElementById('api-url').value.trim();
+  const apiBase      = document.getElementById('api-url').value.trim();
   const model        = document.getElementById('model-name').value.trim();
   const maxTokens    = parseInt(document.getElementById('max-tokens').value);
   const temperature  = parseFloat(document.getElementById('temperature').value);
   const systemPrompt = document.getElementById('system-prompt').value.trim();
 
+  // Messages sent to API (includes system prompt, excludes it from persistent history)
   const messages = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...history]
     : [...history];
 
-  let fullText = '';
+  let finalText = '';
 
   try {
-    const res = await fetch(`${base}/v1/chat/completions`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal:  abortController.signal,
-      body:    JSON.stringify({ model, messages, stream: true, max_tokens: maxTokens, temperature }),
-    });
-
-    if (!res.ok) {
-      bubble.textContent = `Error ${res.status}: ${await res.text()}`;
-      return;
-    }
-
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-
+    // ── Tool calling loop ───────────────────────────────────────────────────
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream: true }).split('\n')) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === 'data: [DONE]' || !trimmed.startsWith('data: ')) continue;
-        try {
-          const delta = JSON.parse(trimmed.slice(6)).choices?.[0]?.delta?.content;
-          if (delta) { fullText += delta; renderContent(bubble, fullText, true, thinkingEnabled); scrollBottom(); }
-        } catch { /* skip malformed chunks */ }
+      const { fullText, toolCalls, finishReason } =
+        await streamCall(apiBase, model, messages, maxTokens, temperature, bubble);
+
+      if (finishReason === 'tool_calls' && toolCalls.length > 0) {
+        // 1. Record assistant's tool_call turn in messages
+        messages.push({
+          role:       'assistant',
+          content:    fullText || null,
+          tool_calls: toolCalls,
+        });
+
+        // 2. Execute each tool and append result
+        for (const call of toolCalls) {
+          let args = {};
+          try { args = JSON.parse(call.function.arguments || '{}'); } catch { /* */ }
+
+          const url = args.url || call.function.name;
+          showToolInBubble(bubble, url);
+          showToolStatus(t('toolFetching').replace('{url}', url));
+
+          let result;
+          try {
+            result = await executeTool(call.function.name, call.function.arguments);
+          } catch (e) {
+            result = `Error executing tool "${call.function.name}": ${e.message}`;
+          }
+
+          messages.push({ role: 'tool', tool_call_id: call.id, content: result });
+        }
+
+        hideToolStatus();
+        bubble.innerHTML = ''; // clear indicator, next iteration streams the real answer
+        continue;
       }
+
+      // No more tool calls — this is the final answer
+      finalText = fullText;
+      break;
     }
   } catch (e) {
     if (e.name !== 'AbortError') bubble.textContent = `Request failed: ${e.message}`;
   } finally {
-    renderContent(bubble, fullText, false, thinkingEnabled);
+    renderContent(bubble, finalText, false, thinkingEnabled);
     bubble.classList.remove('cursor');
-    if (fullText) history.push({ role: 'assistant', content: fullText });
+    hideToolStatus();
+
+    if (finalText) history.push({ role: 'assistant', content: finalText });
 
     abortController       = null;
     sendBtn.style.display = 'inline-block';

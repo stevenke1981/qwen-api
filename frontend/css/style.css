@@ -193,6 +193,14 @@ header .actions {
 .msg:hover .quote-btn { display: inline-block; }
 .quote-btn:hover { color: var(--accent); border-color: var(--accent); }
 
+/* ── Tool call indicator (inside bubble) ──────────────────────────────────── */
+.tool-call-indicator {
+  color: var(--accent);
+  font-size: 13px;
+  padding: 4px 0;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
 /* ── Fetch status bar ─────────────────────────────────────────────────────── */
 #fetch-status {
   display: none;
