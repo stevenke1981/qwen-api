@@ -34,6 +34,5 @@ exec llama-server \
     --ubatch-size "$N_UBATCH" \
     --cache-type-k "$CACHE_TYPE_K" \
     --cache-type-v "$CACHE_TYPE_V" \
-    --defrag-thold 0.1 \
-    --flash-attn \
+    --flash-attn on \
     --chat-template chatml
