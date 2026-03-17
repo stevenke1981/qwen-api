@@ -233,11 +233,18 @@ async function sendMessage() {
 
   try {
     // ── Tool calling loop ───────────────────────────────────────────────────
+    let round = 0;
     while (true) {
+      round++;
+      console.debug(`[tool-loop] round=${round} messages=${messages.length}`);
       const { fullText, toolCalls, finishReason } =
         await streamCall(apiBase, model, messages, maxTokens, temperature, bubble);
 
+      console.debug(`[tool-loop] round=${round} finishReason=${finishReason} toolCalls=${toolCalls.length} textLen=${fullText.length}`);
+      console.debug(`[tool-loop] fullText preview:`, fullText.slice(0, 200));
+
       if (finishReason === 'tool_calls' && toolCalls.length > 0) {
+        console.debug(`[tool-loop] tool calls:`, toolCalls.map(c => `${c.function.name}(${c.function.arguments})`));
         // 1. Record assistant's tool_call turn in messages
         messages.push({
           role:       'assistant',
@@ -278,6 +285,7 @@ async function sendMessage() {
             result = `Error executing tool "${call.function.name}": ${e.message}`;
           }
 
+          console.debug(`[tool-loop] tool result for ${call.function.name} (${result.length} chars):`, result.slice(0, 300));
           messages.push({ role: 'tool', tool_call_id: call.id, content: result });
         }
 
