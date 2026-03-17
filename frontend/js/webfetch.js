@@ -24,6 +24,7 @@ export function normalizeUrl(url) {
  */
 export async function fetchPageText(url, maxChars = 6000) {
   const base = getProxyBase();
+  console.debug('[fetchPageText] proxy=', base, 'url=', url);
   const res  = await fetch(`${base}/fetch`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,15 +46,19 @@ export async function fetchPageText(url, maxChars = 6000) {
  */
 export async function searchWeb(query, maxResults = 5) {
   const base = getProxyBase();
+  console.debug('[searchWeb] proxy=', base, 'query=', query);
   const res  = await fetch(`${base}/search`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ query, max_results: maxResults }),
-    signal:  AbortSignal.timeout(15000),
+    signal:  AbortSignal.timeout(30000),
   });
+  console.debug('[searchWeb] response status=', res.status);
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
     throw new Error(msg);
   }
-  return res.json();
+  const data = await res.json();
+  console.debug('[searchWeb] results=', data.results?.length);
+  return data;
 }

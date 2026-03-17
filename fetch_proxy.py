@@ -129,21 +129,38 @@ async def _fetch_text(client: httpx.AsyncClient, url: str, max_chars: int = 3000
 
 @app.post("/search")
 async def search(req: SearchReq):
+    import asyncio
     try:
         from duckduckgo_search import DDGS
     except ImportError:
         raise HTTPException(503, "duckduckgo-search not installed. Run: pip install duckduckgo-search")
 
-    try:
+    print(f"[search] query={req.query!r} max_results={req.max_results} fetch_top={req.fetch_top}", flush=True)
+
+    def _ddg_search():
+        print("[search] calling DDGS().text() ...", flush=True)
         with DDGS() as ddgs:
             results = list(ddgs.text(req.query, max_results=req.max_results))
+        print(f"[search] DDGS returned {len(results)} results", flush=True)
+        return results
+
+    try:
+        # Run blocking DDGS call in a thread to avoid blocking the async event loop
+        results = await asyncio.wait_for(
+            asyncio.to_thread(_ddg_search),
+            timeout=20,
+        )
+    except asyncio.TimeoutError:
+        print("[search] DDGS timed out after 20s", flush=True)
+        raise HTTPException(504, "Search timed out (DuckDuckGo did not respond in 20s)")
     except Exception as e:
+        print(f"[search] DDGS error: {e}", flush=True)
         raise HTTPException(502, f"Search failed: {e}")
 
-    # Auto-fetch full text for top N results (mimics ChatGPT/Gemini behavior)
+    # Auto-fetch full text for top N results
     if req.fetch_top > 0 and results:
+        print(f"[search] fetching full text for top {req.fetch_top} URLs ...", flush=True)
         async with httpx.AsyncClient(follow_redirects=True, max_redirects=5) as client:
-            import asyncio
             texts = await asyncio.gather(*[
                 _fetch_text(client, r["href"])
                 for r in results[:req.fetch_top]
@@ -151,7 +168,9 @@ async def search(req: SearchReq):
         for i, text in enumerate(texts):
             if text:
                 results[i]["full_text"] = text
+        print("[search] full text fetch done", flush=True)
 
+    print(f"[search] done, returning {len(results)} results", flush=True)
     return {"query": req.query, "results": results}
 
 
@@ -161,4 +180,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8001
     print(f"=== Fetch Proxy: http://0.0.0.0:{port} (/fetch  /search) ===")
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
