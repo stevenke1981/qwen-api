@@ -1,0 +1,14 @@
+[project]
+name = "qwen-api"
+version = "0.1.0"
+description = "Local Qwen3.5-9B API server via llama-cpp-python"
+requires-python = ">=3.12"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "huggingface_hub>=0.23.0",
+    "hf_transfer>=0.1.8",
+    "uvicorn[standard]>=0.30.0",
+]
+
+[tool.uv]
+# llama-cpp-python 由 04_setup_project.sh 從 git 編譯安裝，不列在此
