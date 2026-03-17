@@ -80,8 +80,11 @@ cp .env.example .env
 | `HOST` | `0.0.0.0` | Server bind address |
 | `PORT` | `8000` | Server port |
 | `N_GPU_LAYERS` | `-1` | GPU layers (`-1` = all) |
-| `N_CTX` | `8192` | Context window size |
-| `N_BATCH` | `512` | Batch size |
+| `N_CTX` | `32768` | Context window size |
+| `N_BATCH` | `1024` | Batch size (prompt processing) |
+| `N_UBATCH` | `512` | Micro-batch size (GPU utilization) |
+| `CACHE_TYPE_K` | `q8_0` | KV cache quantization for K (saves VRAM) |
+| `CACHE_TYPE_V` | `q8_0` | KV cache quantization for V (saves VRAM) |
 
 ## Start
 
