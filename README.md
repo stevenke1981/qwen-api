@@ -18,6 +18,7 @@ build_essential.sh            # Install cmake, gcc, build tools
 04b_build_llama_cpp.sh        # Build llama.cpp binaries with CUDA
 05_download_model.sh          # Download Qwen3.5-9B GGUF (~6.86 GB)
 start.sh                      # Start the API server
+frontend/serve.sh             # Start the chat UI (http://localhost:3000)
 ```
 
 > `04_setup_project.sh` installs the Python bindings (llama-cpp-python) and is optional — the server runs via the native `llama-server` binary.
@@ -104,6 +105,23 @@ curl http://localhost:8000/v1/chat/completions \
 ```
 
 Or point any OpenAI-compatible client at `http://localhost:8000`.
+
+## Chat UI
+
+A single-file chat frontend is included. In a second terminal:
+
+```bash
+bash frontend/serve.sh
+```
+
+Open `http://localhost:3000` in your browser.
+
+Features:
+- Streaming responses in real time
+- Collapsible thinking blocks (`<think>...</think>`)
+- Stop generation mid-stream
+- Configurable API URL, model, temperature, max tokens, system prompt
+- Online/Offline health indicator
 
 ## Optional: Python Bindings
 

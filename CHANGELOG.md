@@ -5,6 +5,8 @@
 ### Added
 - `build_essential.sh` — installs cmake, gcc, ninja-build, and other compile tools
 - `04b_build_llama_cpp.sh` — builds llama.cpp C++ binaries (llama-server, llama-cli, llama-bench, llama-quantize) from source with CUDA support
+- `frontend/index.html` — single-file chat UI with streaming, collapsible thinking blocks, stop button, and settings panel
+- `frontend/serve.sh` — serves the frontend via Python's built-in HTTP server (`bash frontend/serve.sh`)
 
 ### Changed
 - `start.sh` — switched from Python `llama-cpp-python` server to native `llama-server` binary; fixes `unknown model architecture: qwen35` error caused by outdated bundled llama.cpp in the Python bindings
