@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Fetch Proxy — 解決瀏覽器 CORS 限制，抓取網頁並回傳純文字供模型使用。
+Fetch Proxy — 解決瀏覽器 CORS 限制。
+端點：
+  POST /fetch   抓取網頁回傳純文字
+  POST /search  DuckDuckGo 搜尋
 預設 port 8001，與 llama-server (8000) 並排執行。
 """
 
@@ -26,6 +29,8 @@ HEADERS      = {"User-Agent": "Mozilla/5.0 (compatible; QwenFetchBot/1.0)"}
 MAX_DOWNLOAD = 2 * 1024 * 1024   # 2 MB hard cap
 
 
+# ── /fetch ────────────────────────────────────────────────────────────────────
+
 class FetchReq(BaseModel):
     url:       str
     max_chars: int = 6000
@@ -34,8 +39,9 @@ class FetchReq(BaseModel):
 @app.post("/fetch")
 async def fetch(req: FetchReq):
     url = req.url.strip()
-    if not url.startswith(("http://", "https://")):
-        raise HTTPException(400, "Only http/https URLs are allowed")
+    # Auto-prepend https:// if missing scheme
+    if not re.match(r"^https?://", url, re.I):
+        url = "https://" + url
 
     async with httpx.AsyncClient(
         timeout=15,
@@ -56,7 +62,6 @@ async def fetch(req: FetchReq):
         except httpx.RequestError as e:
             raise HTTPException(502, f"Request error: {e}")
 
-    # Decode
     charset = "utf-8"
     if "charset=" in content_type:
         charset = content_type.split("charset=")[-1].strip().split(";")[0]
@@ -65,7 +70,6 @@ async def fetch(req: FetchReq):
     except LookupError:
         body = raw.decode("utf-8", errors="replace")
 
-    # Parse
     if "html" in content_type:
         soup = BeautifulSoup(body, "html.parser")
         for tag in soup(["script", "style", "nav", "footer", "aside", "header", "noscript"]):
@@ -87,8 +91,32 @@ async def fetch(req: FetchReq):
     }
 
 
+# ── /search ───────────────────────────────────────────────────────────────────
+
+class SearchReq(BaseModel):
+    query:       str
+    max_results: int = 5
+
+
+@app.post("/search")
+async def search(req: SearchReq):
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        raise HTTPException(503, "duckduckgo-search not installed. Run: pip install duckduckgo-search")
+
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(req.query, max_results=req.max_results))
+        return {"query": req.query, "results": results}
+    except Exception as e:
+        raise HTTPException(502, f"Search failed: {e}")
+
+
+# ── main ──────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     import uvicorn
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8001
-    print(f"=== Fetch Proxy: http://0.0.0.0:{port}/fetch ===")
+    print(f"=== Fetch Proxy: http://0.0.0.0:{port} (/fetch  /search) ===")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")

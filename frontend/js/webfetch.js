@@ -1,11 +1,4 @@
-// ── URL detection & proxy fetch ───────────────────────────────────────────────
-
-const URL_RE = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
-
-/** Extract unique URLs from a string. */
-export function detectUrls(text) {
-  return [...new Set(text.match(URL_RE) || [])];
-}
+// ── Proxy helpers ─────────────────────────────────────────────────────────────
 
 /** Derive proxy base URL from the configured API URL (same host, port 8001). */
 function getProxyBase() {
@@ -17,16 +10,24 @@ function getProxyBase() {
   }
 }
 
+/** Normalize URL — prepend https:// if no scheme present. */
+export function normalizeUrl(url) {
+  url = url.trim();
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+// ── /fetch ────────────────────────────────────────────────────────────────────
+
 /**
- * Fetch a URL via the local proxy and return:
- *   { url, title, text, truncated, total_chars }
+ * Fetch a URL via the local proxy.
+ * Returns { url, title, text, truncated, total_chars }
  */
 export async function fetchPageText(url, maxChars = 6000) {
   const base = getProxyBase();
   const res  = await fetch(`${base}/fetch`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ url, max_chars: maxChars }),
+    body:    JSON.stringify({ url: normalizeUrl(url), max_chars: maxChars }),
     signal:  AbortSignal.timeout(20000),
   });
   if (!res.ok) {
@@ -36,14 +37,23 @@ export async function fetchPageText(url, maxChars = 6000) {
   return res.json();
 }
 
+// ── /search ───────────────────────────────────────────────────────────────────
+
 /**
- * Format fetched pages into a context block for the model.
- * This is appended to the user message before sending.
+ * Web search via DuckDuckGo (through proxy).
+ * Returns { query, results: [{ title, href, body }] }
  */
-export function buildFetchContext(results) {
-  return results.map(r => {
-    const label = r.title ? `${r.title} — ${r.url}` : r.url;
-    const note  = r.truncated ? ` [truncated, ${r.total_chars} chars total]` : '';
-    return `=== Web: ${label}${note} ===\n${r.text}\n=== End ===`;
-  }).join('\n\n');
+export async function searchWeb(query, maxResults = 5) {
+  const base = getProxyBase();
+  const res  = await fetch(`${base}/search`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ query, max_results: maxResults }),
+    signal:  AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg);
+  }
+  return res.json();
 }

@@ -216,9 +216,20 @@ async function sendMessage() {
           let args = {};
           try { args = JSON.parse(call.function.arguments || '{}'); } catch { /* */ }
 
-          const url = args.url || call.function.name;
-          showToolInBubble(bubble, url);
-          showToolStatus(t('toolFetching').replace('{url}', url));
+          let statusMsg;
+          if (call.function.name === 'web_fetch') {
+            statusMsg = t('toolFetching').replace('{url}', args.url || '');
+          } else if (call.function.name === 'web_search') {
+            statusMsg = t('toolSearching').replace('{query}', args.query || '');
+          } else if (call.function.name === 'read_file') {
+            statusMsg = t('toolReadFile');
+          } else if (call.function.name === 'write_file') {
+            statusMsg = t('toolWriteFile').replace('{filename}', args.filename || '');
+          } else {
+            statusMsg = call.function.name;
+          }
+          showToolInBubble(bubble, statusMsg);
+          showToolStatus(statusMsg);
 
           let result;
           try {

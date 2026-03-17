@@ -28,6 +28,9 @@ const TRANSLATIONS = {
     quoteHint:        'Select text to quote partially, or click to quote full message',
     fetchError:       'Failed to fetch',
     toolFetching:     'Fetching: {url}',
+    toolSearching:    'Searching: {query}',
+    toolReadFile:     'Opening file picker…',
+    toolWriteFile:    'Saving: {filename}',
   },
   'zh-TW': {
     settings:         '設定',
@@ -57,6 +60,9 @@ const TRANSLATIONS = {
     quoteHint:        '選取文字可部分引用，或點擊引用完整訊息',
     fetchError:       '無法抓取',
     toolFetching:     '抓取：{url}',
+    toolSearching:    '搜尋：{query}',
+    toolReadFile:     '開啟檔案選擇器…',
+    toolWriteFile:    '儲存：{filename}',
   },
   'zh-CN': {
     settings:         '设置',
@@ -86,6 +92,9 @@ const TRANSLATIONS = {
     quoteHint:        '选取文字可部分引用，或点击引用完整消息',
     fetchError:       '无法抓取',
     toolFetching:     '抓取：{url}',
+    toolSearching:    '搜索：{query}',
+    toolReadFile:     '打开文件选择器…',
+    toolWriteFile:    '保存：{filename}',
   },
   ja: {
     settings:         '設定',
@@ -115,6 +124,9 @@ const TRANSLATIONS = {
     quoteHint:        'テキストを選択して部分引用、またはクリックで全文引用',
     fetchError:       '取得失敗',
     toolFetching:     '取得中：{url}',
+    toolSearching:    '検索中：{query}',
+    toolReadFile:     'ファイル選択を開きます…',
+    toolWriteFile:    '保存中：{filename}',
   },
 };
 
