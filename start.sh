@@ -25,9 +25,9 @@ echo ""
 
 # ── Fetch Proxy（port 8001）─────────────────────────────────────────────────
 echo "=== 啟動 Fetch Proxy (port 8001) ==="
-python3 -c "import httpx, bs4, fastapi, duckduckgo_search" 2>/dev/null || \
+.venv/bin/python3 -c "import httpx, bs4, fastapi, duckduckgo_search" 2>/dev/null || \
     uv pip install httpx beautifulsoup4 "fastapi[standard]" duckduckgo-search --quiet
-python3 fetch_proxy.py 8001 &
+.venv/bin/python3 fetch_proxy.py 8001 &
 PROXY_PID=$!
 trap "kill $PROXY_PID 2>/dev/null" EXIT INT TERM
 echo "Fetch Proxy PID: $PROXY_PID"
@@ -44,5 +44,4 @@ llama-server \
     --cache-type-k "$CACHE_TYPE_K" \
     --cache-type-v "$CACHE_TYPE_V" \
     --flash-attn on \
-    --tool-call-parser qwen \
     --chat-template chatml
