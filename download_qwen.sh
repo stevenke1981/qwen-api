@@ -18,6 +18,7 @@ MODELS=(
   "Qwen3-14B-Instruct       | Qwen/Qwen3-14B-Instruct-GGUF           | 10 | 高品質推理"
   "Qwen3-32B-Instruct       | Qwen/Qwen3-32B-Instruct-GGUF           | 22 | 旗艦，需高 VRAM"
   "Qwen3-30B-A3B-Instruct   | Qwen/Qwen3-30B-A3B-Instruct-GGUF       | 20 | MoE，推理效率高"
+  "Qwen3-Coder-30B-A3B      | Qwen/Qwen3-Coder-30B-A3B-Instruct-GGUF | 20 | MoE coding 旗艦，需 CPU offload on 12GB"
   # ── Qwen3.5 ───────────────────────────────────────────────────────────────
   "Qwen3.5-9B               | bartowski/Qwen_Qwen3.5-9B-GGUF         | 7  | 目前預設模型"
   # ── Qwen2.5 通用 ──────────────────────────────────────────────────────────
