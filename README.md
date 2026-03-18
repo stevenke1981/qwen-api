@@ -16,8 +16,10 @@ A local OpenAI-compatible API server for Qwen3.5-9B, powered by [llama.cpp](http
 build_essential.sh            # Install cmake, gcc, build tools
 03_install_python.sh          # Install Python 3.12 via uv
 04b_build_llama_cpp.sh        # Build llama.cpp binaries with CUDA
-05_download_model.sh          # Download Qwen3.5-9B GGUF (~6.86 GB)
-start.sh                      # Start API server + fetch proxy
+05_download_model.sh          # Download pre-quantized GGUF (interactive menu)
+06_convert_to_gguf.sh         # Convert any HF model → GGUF + quantize  (optional)
+start.sh                      # Start chat API server + fetch proxy
+start_openclaw.sh             # Start API server optimised for OpenClaw agent
 frontend/serve.sh             # Start the chat UI  (Linux)
 frontend/start_frontend.bat   # Start the chat UI  (Windows)
 ```
@@ -206,6 +208,31 @@ Key settings already applied:
 - `CACHE_TYPE_K/V=q8_0` — quantized KV cache (saves ~40% VRAM)
 
 > Rebuild `llama-server` from source with `bash 04b_build_llama_cpp.sh` to ensure the latest llama.cpp features (Jinja tool calling, qwen35 architecture support).
+
+## Convert HuggingFace Model to GGUF (Optional)
+
+If you want to use a model that is only available in HuggingFace safetensors format (not pre-quantized GGUF), use the conversion script:
+
+```bash
+bash 06_convert_to_gguf.sh
+```
+
+Default source: `Qwen/Qwen3.5-9B`. To convert any other model:
+
+```bash
+HF_REPO="HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive" \
+MODEL_NAME="Qwen3.5-9B-Uncensored" \
+bash 06_convert_to_gguf.sh
+```
+
+**Steps performed:**
+1. Install Python dependencies (`transformers`, `gguf`, `sentencepiece`)
+2. Download model safetensors → `~/models/hf_<name>/`
+3. Convert to GGUF F16 → `~/models/<name>-F16.gguf`
+4. Quantize to Q4\_K\_M / Q5\_K\_M / Q8\_0 (interactive choice)
+
+> **Disk space:** F16 is ~18 GB; ensure at least 30 GB free in `~/models/` before converting.
+> Requires `llama-quantize` from `04b_build_llama_cpp.sh`.
 
 ## Optional: Python Bindings
 
