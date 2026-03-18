@@ -3,6 +3,22 @@
 ## [Unreleased] — 2026-03-18
 
 ### Added
+- `start_openclaw.sh` — llama-server optimised for OpenClaw/agent use: ctx 16384, n-predict 2048, no fetch proxy; defaults to `Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M`, falls back to `.env` MODEL_PATH
+- `06_convert_to_gguf.sh` — interactive script to download any HF model (safetensors) and convert to GGUF F16, then quantize to Q4_K_M / Q5_K_M / Q8_0 via `llama-quantize`
+- `05_download_model.sh` — expanded to interactive menu with 5 model options including Qwen2.5-Coder variants and Uncensored HauhauCS model
+- `tools.js: get_datetime` — browser-native date/time tool; model calls it instead of guessing date
+
+### Changed
+- `fetch_proxy.py /search` — `fetch_top` default changed `2 → 0` (auto page-fetch off by default to reduce context size); added `max_chars` param (default 1500)
+- `chat.js streamCall()` — now captures `delta.reasoning_content` in addition to `delta.content` (some llama.cpp builds stream thinking here)
+- `chat.js sendMessage()` — added fallback message when tools ran but model returned empty response
+- `settings.js DEFAULTS` — system prompt updated: `get_datetime` does not replace `web_search`; rule against repeat searches
+- `tools.js get_datetime` — description restricted to pure date/time queries to prevent misuse as search prerequisite
+- `CLAUDE.md` — fully updated: new scripts, all tools, known issues, file tree
+
+## [Unreleased] — 2026-03-18 (continued)
+
+### Added
 - `get_datetime` tool — model can now query current date/time from the browser (no network required)
 - Export chat button — header button downloads full conversation as `chat-export-YYYY-MM-DD.md`
 - Reset defaults button — settings panel restores temperature, system prompt, and all defaults
