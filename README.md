@@ -61,11 +61,19 @@ bash 04b_build_llama_cpp.sh
 
 ### 6. Download Model
 
-Downloads `Qwen_Qwen3.5-9B-Q5_K_M.gguf` (~6.86 GB) from Hugging Face.
+Interactive menu — choose the model that fits your use case:
 
 ```bash
 bash 05_download_model.sh
 ```
+
+| # | Model | Size | Use case |
+|---|-------|------|----------|
+| 1 | Qwen3.5-9B Q5_K_M | 6.86 GB | General chat (default) |
+| 2 | Qwen2.5-Coder-7B Q8_0 | 8.10 GB | Coding, fast |
+| 3 | Qwen2.5-Coder-14B Q4_K_M | 8.99 GB | Coding, quality |
+| 4 | Qwen2.5-Coder-14B Q8_0 | 15.7 GB | Coding, best quality (needs 16 GB VRAM) |
+| 5 | Qwen3.5-9B Uncensored HauhauCS Q4_K_M | ~6 GB | OpenClaw agent use |
 
 ## Configuration
 
@@ -89,16 +97,24 @@ cp .env.example .env
 
 ## Start
 
+### Chat frontend + web tools
 ```bash
 bash start.sh
 ```
 
-`start.sh` launches two services:
+Launches two services:
 
 | Service | Port | Description |
 |---------|------|-------------|
 | llama-server | 8000 | OpenAI-compatible LLM API |
 | fetch_proxy.py | 8001 | Web fetch / search proxy (CORS bypass) |
+
+### OpenClaw / coding agent
+```bash
+bash start_openclaw.sh
+```
+
+Optimised for agent use (ctx 16384, max-predict 2048, no fetch proxy). Uses `Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M` by default; falls back to `.env` `MODEL_PATH` if not found.
 
 The LLM API is available at `http://<host>:8000`.
 
@@ -140,7 +156,7 @@ Open `http://localhost:3000` in your browser.
 | Streaming responses | Real-time token streaming with blinking cursor |
 | Thinking mode toggle | Header button — prepends `/think` or `/no_think` per message |
 | Collapsible thinking blocks | `<think>` blocks rendered and collapsed by default |
-| Tool calling | Model autonomously calls web_search / web_fetch / read_file / write_file |
+| Tool calling | Model autonomously calls web_search / web_fetch / get_datetime / read_file / write_file |
 | Tool call log | 🔍🔗📄💾 shown at top of bubble after response |
 | Quote messages | Hover → Quote button; select text for partial quote |
 | Code blocks | Syntax-highlighted with one-click copy |
@@ -158,8 +174,9 @@ The model autonomously decides when to use tools. No special syntax required —
 
 | Tool | Example prompt | Action |
 |------|---------------|--------|
+| `web_search` | "Search for Qwen3 latest news" | DuckDuckGo search + summary |
 | `web_fetch` | "Read github.com/openai" | Fetches and returns page text |
-| `web_search` | "Search for Qwen3 latest news" | DuckDuckGo search results |
+| `get_datetime` | "What day is today?" | Returns current date/time from browser |
 | `read_file` | "Analyse this file for me" | Opens file picker → reads content |
 | `write_file` | "Save this report as report.txt" | Downloads file to your computer |
 
