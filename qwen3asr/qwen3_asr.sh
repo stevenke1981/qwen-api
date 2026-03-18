@@ -71,7 +71,7 @@ echo "  ✓ qwen-asr 安裝完成"
 
 # Flash Attention（可選，加快推理）
 echo ""
-read -rp "  安裝 flash-attn（加快推理，需編譯約 5-10 分鐘）？[y/N]：" FA_INSTALL
+read -rp "  安裝 flash-attn（加快推理，需從原始碼編譯，約 20-40 分鐘，可選擇跳過）？[y/N]：" FA_INSTALL
 if [[ "$FA_INSTALL" =~ ^[Yy]$ ]]; then
     uv pip install -U flash-attn --no-build-isolation || echo "  ⚠ flash-attn 安裝失敗，繼續（可省略）"
 fi
