@@ -30,10 +30,10 @@ echo "模式：$TTS_MODE"
 echo "位址：http://0.0.0.0:$TTS_PORT"
 echo ""
 
-.venv/bin/python3 -c "import qwen_tts" 2>/dev/null || {
-    echo "❌ qwen-tts 未安裝，請先執行：bash qwen3_tts.sh"
+../.venv/bin/python3 -c "import qwen_tts" 2>/dev/null || {
+    echo "❌ qwen-tts 未安裝，請先執行：bash tts/qwen3_tts.sh"
     exit 1
 }
 
 export TTS_MODEL TTS_MODE
-.venv/bin/python3 tts_api.py "$TTS_PORT"
+../.venv/bin/python3 tts_api.py "$TTS_PORT"

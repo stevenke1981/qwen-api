@@ -20,10 +20,10 @@ echo "位址：http://0.0.0.0:$ASR_PORT"
 echo "時間戳記：${ASR_TIMESTAMPS:-false}"
 echo ""
 
-.venv/bin/python3 -c "import qwen_asr" 2>/dev/null || {
-    echo "❌ qwen-asr 未安裝，請先執行：bash qwen3_asr.sh"
+../.venv/bin/python3 -c "import qwen_asr" 2>/dev/null || {
+    echo "❌ qwen-asr 未安裝，請先執行：bash asr/qwen3_asr.sh"
     exit 1
 }
 
 export ASR_MODEL ASR_TIMESTAMPS
-.venv/bin/python3 asr_api.py "$ASR_PORT"
+../.venv/bin/python3 asr_api.py "$ASR_PORT"

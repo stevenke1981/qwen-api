@@ -6,7 +6,7 @@
 set -e
 
 export PATH="$HOME/.local/bin:$PATH"
-VENV_PYTHON=".venv/bin/python3"
+VENV_PYTHON="../.venv/bin/python3"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── 模型清單 ─────────────────────────────────────────────────────────────────

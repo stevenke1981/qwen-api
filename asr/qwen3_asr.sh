@@ -7,7 +7,7 @@ set -e
 
 export PATH="$HOME/.local/bin:$PATH"
 MODEL_DIR="${MODEL_DIR:-$HOME/models}"
-VENV_PYTHON=".venv/bin/python3"
+VENV_PYTHON="../.venv/bin/python3"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── 模型清單 ─────────────────────────────────────────────────────────────────
