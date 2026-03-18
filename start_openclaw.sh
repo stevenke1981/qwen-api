@@ -3,7 +3,7 @@
 # 模型：Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M（OpenClaw 指定）
 # 差異：
 #   - 使用 Uncensored 模型，對 coding agent 指令更服從
-#   - ctx-size 16384（coding agent 用不到 32k，省 VRAM）
+#   - ctx-size 32768（OpenClaw agent 對話累積，需要大 context）
 #   - n-predict 2048（agent 回應不需超長，加快速度）
 #   - 不啟動 fetch proxy（OpenClaw 有自己的 tools）
 set -e
@@ -31,7 +31,7 @@ if [ ! -f "$MODEL_PATH" ]; then
     echo ""
 fi
 N_GPU_LAYERS="${N_GPU_LAYERS:--1}"
-N_CTX=16384       # 省 VRAM，coding agent 用不到 32k
+N_CTX=32768       # OpenClaw 需要至少 32k（agent 對話累積快）
 N_BATCH=1024
 N_UBATCH=512
 CACHE_TYPE_K="${CACHE_TYPE_K:-q8_0}"
@@ -40,7 +40,7 @@ CACHE_TYPE_V="${CACHE_TYPE_V:-q8_0}"
 echo "=== 啟動 llama-server for OpenClaw ==="
 echo "模型：$MODEL_PATH"
 echo "位址：http://$HOST:$PORT"
-echo "Context：$N_CTX  max predict：2048"
+echo "Context：$N_CTX  max predict：2048  (VRAM ~10-11 GB)"
 echo ""
 
 llama-server \
