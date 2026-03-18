@@ -13,12 +13,13 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 # ── 可用模型清單 ───────────────────────────────────────────────────────────────
 echo "=== 選擇要下載的模型 ==="
 echo ""
-echo "  1) Qwen3.5-9B Q5_K_M       — 6.86 GB  通用對話（目前預設）"
-echo "  2) Qwen2.5-Coder-7B Q8_0   — 8.10 GB  coding 優化，速度快"
-echo "  3) Qwen2.5-Coder-14B Q4_K_M — 8.99 GB  coding 優化，品質佳（推薦 OpenClaw）"
-echo "  4) Qwen2.5-Coder-14B Q8_0  — 15.7 GB  coding 最高品質（需 16GB VRAM）"
+echo "  1) Qwen3.5-9B Q5_K_M                      — 6.86 GB  通用對話（預設）"
+echo "  2) Qwen2.5-Coder-7B Q8_0                  — 8.10 GB  coding 優化，速度快"
+echo "  3) Qwen2.5-Coder-14B Q4_K_M               — 8.99 GB  coding 優化，品質佳"
+echo "  4) Qwen2.5-Coder-14B Q8_0                 — 15.7 GB  coding 最高品質（需 16GB VRAM）"
+echo "  5) Qwen3.5-9B-Uncensored HauhauCS Q4_K_M  — ~6 GB    OpenClaw 指定模型"
 echo ""
-read -rp "請輸入編號 [1-4]：" CHOICE
+read -rp "請輸入編號 [1-5]：" CHOICE
 
 case "$CHOICE" in
   1)
@@ -40,6 +41,11 @@ case "$CHOICE" in
     REPO="Qwen/Qwen2.5-Coder-14B-Instruct-GGUF"
     FILE="qwen2.5-coder-14b-instruct-q8_0.gguf"
     SIZE="15.7 GB"
+    ;;
+  5)
+    REPO="HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive"
+    FILE="Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf"
+    SIZE="~6 GB"
     ;;
   *)
     echo "無效選擇，離開。"
