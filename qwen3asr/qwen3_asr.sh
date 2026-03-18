@@ -140,12 +140,13 @@ results = model.transcribe(
 for r in results:
     print(f"語言：{r.language}")
     print(f"文字：{r.text}")
-    if r.segments:
+    segs = getattr(r, 'segments', None)
+    if segs:
         print("時間戳記：")
-        for seg in r.segments[:5]:  # 只顯示前 5 個
+        for seg in segs[:5]:
             print(f"  [{seg.start_time:.2f}s - {seg.end_time:.2f}s] {seg.text}")
-        if len(r.segments) > 5:
-            print(f"  ...（共 {len(r.segments)} 個片段）")
+        if len(segs) > 5:
+            print(f"  ...（共 {len(segs)} 個片段）")
 PYEOF
 else
     cat > "$SCRIPT_DIR/asr_run.py" << PYEOF
