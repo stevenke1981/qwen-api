@@ -96,10 +96,11 @@ async def fetch(req: FetchReq):
 class SearchReq(BaseModel):
     query:       str
     max_results: int = 5
-    fetch_top:   int = 2   # auto-fetch full text of top N results (0 = off)
+    fetch_top:   int = 0    # auto-fetch full text of top N results (0 = off by default)
+    max_chars:   int = 1500 # max chars per fetched page
 
 
-async def _fetch_text(client: httpx.AsyncClient, url: str, max_chars: int = 3000) -> str:
+async def _fetch_text(client: httpx.AsyncClient, url: str, max_chars: int = 1500) -> str:
     """Fetch a URL and return stripped plain text (best-effort)."""
     try:
         async with client.stream("GET", url, headers=HEADERS, timeout=10) as r:
@@ -162,7 +163,7 @@ async def search(req: SearchReq):
         print(f"[search] fetching full text for top {req.fetch_top} URLs ...", flush=True)
         async with httpx.AsyncClient(follow_redirects=True, max_redirects=5) as client:
             texts = await asyncio.gather(*[
-                _fetch_text(client, r["href"])
+                _fetch_text(client, r["href"], req.max_chars)
                 for r in results[:req.fetch_top]
             ])
         for i, text in enumerate(texts):

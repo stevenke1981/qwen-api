@@ -1,5 +1,32 @@
 # Changelog
 
+## [Unreleased] — 2026-03-18
+
+### Added
+- `get_datetime` tool — model can now query current date/time from the browser (no network required)
+- Export chat button — header button downloads full conversation as `chat-export-YYYY-MM-DD.md`
+- Reset defaults button — settings panel restores temperature, system prompt, and all defaults
+- Tool call log — persisted purple block at top of assistant bubble showing which tools ran (🔍🔗📄💾🕐)
+- `settings.js: DEFAULTS` — hardcoded defaults object, single source of truth for all setting values
+- `i18n.js: getLangInstruction()` — appends language reply instruction to system prompt on every send
+- `i18n.js: resetSettings / export` — translation keys added to all 4 languages
+
+### Changed
+- `start.sh` — replaced `--tool-call-parser qwen` with `--jinja` (required by newer llama.cpp builds); removed `--chat-template chatml` which was overriding the model's built-in Jinja template
+- `fetch_proxy.py /search` — switched DDGS call to `asyncio.to_thread()` to prevent blocking the async event loop; added 20s timeout; `fetch_top` default changed to `0` (off) to keep context size manageable
+- `fetch_proxy.py /search` — added `max_chars` parameter (default 1500) controlling per-page text limit when `fetch_top > 0`
+- `frontend/js/chat.js` — tool calling loop now captures `delta.reasoning_content` in addition to `delta.content` (compatibility with some llama.cpp streaming builds)
+- `frontend/js/chat.js` — added fallback message when tools ran but model returned empty response
+- `frontend/js/settings.js` — refined default system prompt: search-first rules, no repeat search, cite URLs, `get_datetime` does not replace `web_search`
+- `frontend/js/tools.js` — `get_datetime` description restricted to pure date/time queries only
+- `frontend/js/webfetch.js` — added `console.debug` logging for proxy calls (aids debugging)
+- Temperature default: `0.7` → `0.1`
+
+### Fixed
+- Buttons (Think/Settings/Clear) disappeared after JS module load failure — root cause was browser cache; resolved with hard refresh (Ctrl+Shift+R)
+- Tool call log showing `get_datetime: get_datetime` — fixed `logDetail` to show actual current timestamp
+- Model responded with training data instead of searching — fixed via system prompt rules and `get_datetime` tool description guard
+
 ## [Unreleased]
 
 ### Added

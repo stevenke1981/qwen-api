@@ -53,6 +53,20 @@ export const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'get_datetime',
+      description:
+        'Get the current local date and time from the user\'s browser. ' +
+        'ONLY call this when the user explicitly asks what date or time it is. ' +
+        'Do NOT call this as a step before searching — just include the date in your search query instead.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'read_file',
       description:
         'Open a file picker so the user can select a local file. ' +
@@ -129,6 +143,18 @@ export async function executeTool(name, argsStr) {
       lines.push('');
     });
     return lines.join('\n');
+  }
+
+  // ── get_datetime ───────────────────────────────────────────────────────────
+  if (name === 'get_datetime') {
+    const now = new Date();
+    return [
+      `Date: ${now.toLocaleDateString('en-CA')}`,           // YYYY-MM-DD
+      `Time: ${now.toLocaleTimeString()}`,
+      `Day:  ${now.toLocaleDateString('en-US', { weekday: 'long' })}`,
+      `Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`,
+      `ISO: ${now.toISOString()}`,
+    ].join('\n');
   }
 
   // ── read_file ──────────────────────────────────────────────────────────────

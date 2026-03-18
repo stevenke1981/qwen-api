@@ -180,9 +180,10 @@ async function streamCall(apiBase, model, messages, maxTokens, temperature, bubb
           }
         }
 
-        // Stream text content
-        if (delta.content) {
-          fullText += delta.content;
+        // Stream text content (also handle reasoning_content for some llama.cpp builds)
+        const chunk = delta.content ?? delta.reasoning_content ?? '';
+        if (chunk) {
+          fullText += chunk;
           renderContent(bubble, fullText, true, thinkingEnabled);
           scrollBottom();
         }
@@ -264,6 +265,9 @@ async function sendMessage() {
           } else if (call.function.name === 'web_search') {
             statusMsg = `🔍 ${t('toolSearching').replace('{query}', args.query || '')}`;
             logIcon   = '🔍'; logDetail = args.query || '';
+          } else if (call.function.name === 'get_datetime') {
+            statusMsg = '🕐 Getting current date/time…';
+            logIcon   = '🕐'; logDetail = new Date().toLocaleString();
           } else if (call.function.name === 'read_file') {
             statusMsg = t('toolReadFile');
             logIcon   = '📄'; logDetail = 'read_file';
@@ -301,6 +305,8 @@ async function sendMessage() {
   } catch (e) {
     if (e.name !== 'AbortError') bubble.textContent = `Request failed: ${e.message}`;
   } finally {
+    // If tools ran but model returned no text, show a fallback
+    if (!finalText && toolLogHtml) finalText = '*(No response generated after tool execution)*';
     renderContent(bubble, finalText, false, thinkingEnabled);
     if (toolLogHtml) {
       const log = document.createElement('div');
