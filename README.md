@@ -116,7 +116,7 @@ Launches two services:
 bash start_openclaw.sh
 ```
 
-Optimised for agent use (ctx 16384, max-predict 2048, no fetch proxy). Uses `Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M` by default; falls back to `.env` `MODEL_PATH` if not found.
+Optimised for agent use (ctx 32768, max-predict 2048, no fetch proxy). Uses `Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M` by default; falls back to `.env` `MODEL_PATH` if not found.
 
 The LLM API is available at `http://<host>:8000`.
 
@@ -233,6 +233,81 @@ bash 06_convert_to_gguf.sh
 
 > **Disk space:** F16 is ~18 GB; ensure at least 30 GB free in `~/models/` before converting.
 > Requires `llama-quantize` from `04b_build_llama_cpp.sh`.
+
+## Troubleshooting
+
+### OpenClaw: "request exceeds available context size"
+
+**Error:**
+```
+400 request (28166 tokens) exceeds the available context size (16384 tokens)
+```
+
+**Cause:** `start_openclaw.sh` had `--ctx-size 16384`. OpenClaw accumulates agent conversation history quickly and requires at least 32k context.
+
+**Fix:** Already updated in `start_openclaw.sh` — ctx-size is now `32768`. Pull latest and restart:
+
+```bash
+git pull
+tmux kill-session -t openclaw
+tmux new-session -d -s openclaw 'bash ~/qwen-api/start_openclaw.sh'
+```
+
+---
+
+### XRDP: Cannot connect / physical machine shows XFCE4 login instead of terminal
+
+**Cause:** Installing XFCE4 installs `lightdm` which changes the boot target from `multi-user` (terminal) to `graphical` (desktop). XRDP `startwm.sh` was also overwritten incorrectly.
+
+**Fix:** Run the repair script:
+
+```bash
+# Switch to TTY first (at the XFCE4 login screen)
+Ctrl + Alt + F2
+
+# Pull and run the fix script
+cd ~/qwen-api && git pull
+bash fix_xrdp.sh
+sudo reboot
+```
+
+`fix_xrdp.sh` restores terminal boot mode, disables the display manager, and fixes the XRDP session configuration.
+
+---
+
+### Tool calling not working ("I cannot browse the web")
+
+**Cause:** `--tool-call-parser` was removed in newer llama.cpp builds.
+
+**Fix:** Use `--jinja` flag (already set in `start.sh` and `start_openclaw.sh`). Also remove `--chat-template chatml` if present — it overrides the model's built-in Jinja template and breaks tool calling.
+
+Verify tool calling is active:
+```bash
+# Should show --jinja in help output
+llama-server --help | grep jinja
+```
+
+---
+
+### Server responds locally but unreachable from LAN
+
+**Check 1:** Confirm current IP (DHCP can reassign after reboot):
+```bash
+hostname -I
+```
+
+**Check 2:** Ensure UFW is not blocking port 8000:
+```bash
+sudo ufw status
+sudo ufw allow 8000/tcp   # if ufw is active
+```
+
+**Check 3:** Test from Windows PowerShell:
+```powershell
+Test-NetConnection -ComputerName <server-ip> -Port 8000
+```
+
+---
 
 ## Optional: Python Bindings
 
