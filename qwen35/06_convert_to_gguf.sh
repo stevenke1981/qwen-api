@@ -8,7 +8,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 LLAMA_DIR="$HOME/llama.cpp"
 MODEL_DIR="$HOME/models"
-VENV_PYTHON=".venv/bin/python3"
+VENV_PYTHON="../.venv/bin/python3"
 
 # ── 預設模型（可用環境變數覆寫）─────────────────────────────────────────────
 HF_REPO="${HF_REPO:-Qwen/Qwen3.5-9B}"

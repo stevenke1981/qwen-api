@@ -69,10 +69,10 @@ echo ""
 
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
-.venv/bin/python3 -c "import huggingface_hub" 2>/dev/null || \
+../.venv/bin/python3 -c "import huggingface_hub" 2>/dev/null || \
     uv pip install huggingface_hub hf_transfer --quiet
 
-.venv/bin/python3 - <<PYEOF
+../.venv/bin/python3 - <<PYEOF
 import sys
 from huggingface_hub import list_repo_files, hf_hub_download
 

@@ -12,7 +12,7 @@ set -e
 export PATH="$HOME/.local/bin:/usr/local/cuda/bin:$PATH"
 export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
 
-[ -f .env ] && { set -a; source .env; set +a; }
+[ -f ../.env ] && { set -a; source ../.env; set +a; }
 
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8000}"

@@ -8,7 +8,7 @@ set -e
 export PATH="$HOME/.local/bin:$PATH"
 MODEL_DIR="${MODEL_DIR:-$HOME/models}"
 LLAMA_DIR="${LLAMA_DIR:-$HOME/llama.cpp}"
-VENV_PYTHON=".venv/bin/python3"
+VENV_PYTHON="../.venv/bin/python3"
 mkdir -p "$MODEL_DIR"
 
 # ── 模型清單 ─────────────────────────────────────────────────────────────────
