@@ -14,25 +14,16 @@ export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
 # 載入基礎設定（可被下方覆寫）
 [ -f .env ] && { set -a; source .env; set +a; }
 
-# OpenClaw 專用參數（覆寫 .env）
+# OpenClaw 專用參數（沿用 .env 的模型，只調整推理參數）
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8000}"
-MODEL_PATH="${CODER_MODEL_PATH:-$HOME/models/qwen2.5-coder-14b-instruct-q4_k_m.gguf}"
+MODEL_PATH="${MODEL_PATH:-$HOME/models/Qwen_Qwen3.5-9B-Q5_K_M.gguf}"
 N_GPU_LAYERS="${N_GPU_LAYERS:--1}"
-N_CTX=16384       # 夠用且省 VRAM
+N_CTX=16384       # 省 VRAM，coding agent 用不到 32k
 N_BATCH=1024
 N_UBATCH=512
 CACHE_TYPE_K="${CACHE_TYPE_K:-q8_0}"
 CACHE_TYPE_V="${CACHE_TYPE_V:-q8_0}"
-
-# 若 Coder 模型不存在，退回預設模型
-if [ ! -f "$MODEL_PATH" ]; then
-    echo "⚠  找不到 Coder 模型：$MODEL_PATH"
-    MODEL_PATH="${MODEL_PATH:-$HOME/models/Qwen_Qwen3.5-9B-Q5_K_M.gguf}"
-    echo "   退回使用：$MODEL_PATH"
-    echo "   建議先執行：bash 05_download_model.sh（選 3）"
-    echo ""
-fi
 
 echo "=== 啟動 llama-server for OpenClaw ==="
 echo "模型：$MODEL_PATH"
