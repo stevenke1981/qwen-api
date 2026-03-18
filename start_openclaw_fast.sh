@@ -49,4 +49,4 @@ llama-server \
     --flash-attn    on \
     --n-predict     2048 \
     --jinja \
-    --override-kv   tokenizer.chat_template.reasoning_budget=int:0
+    --reasoning     off
