@@ -27,7 +27,7 @@ flowchart TD
 
     MODEL{"模型取得方式"}
 
-    MODEL -->|"下載現成 GGUF"| DL["05_download_model.sh\n互動選單 5 種模型\n1 Qwen3.5-9B Q5_K_M\n2 Qwen2.5-Coder-7B Q8\n3 Qwen2.5-Coder-14B Q4\n4 Qwen2.5-Coder-14B Q8\n5 Qwen3.5-9B Uncensored Q4"]
+    MODEL -->|"下載現成 GGUF"| DL["download_qwen.sh\n互動選單 24 種 Qwen 模型\n7 量化選項（IQ2_M～Q8_0）\n自動偵測 HF repo 內 GGUF 檔案"]
     MODEL -->|"從 HuggingFace 自行轉換"| CONV["06_convert_to_gguf.sh\nHF safetensors → GGUF F16\n再量化 Q4_K_M / Q5_K_M / Q8_0"]
 
     DL --> RUN
@@ -53,6 +53,8 @@ flowchart LR
     OPT2["07_setup_remote_desktop.sh\nXFCE4 + XRDP\nWindows 遠端桌面 :3389"]
 
     OPT3["setup_tw_mirror.sh\n台灣 apt 鏡像\nNCTU / NTU / HiNet"]
+
+    OPT4["setup_disable_sleep.sh\n停用 Ubuntu 休眠 / 睡眠\n適合遠端桌面長時間掛機"]
 ```
 
 ---
@@ -68,9 +70,12 @@ flowchart LR
 | `03_install_python.sh` | 安裝 Python 3.12 via uv、建立 `.venv` | ✅ |
 | `04_setup_project.sh` | Python llama-cpp-python 綁定 ⚠ 已棄用 | 選用 |
 | `04b_build_llama_cpp.sh` | 從原始碼編譯 llama-server（CUDA） | ✅ |
-| `05_download_model.sh` | 下載現成 GGUF 模型（5 選項） | ✅ |
+| `05_download_model.sh` | 下載現成 GGUF 模型（舊版，5 選項） | 選用 |
+| `download_qwen.sh` | 互動選單下載任意 Qwen GGUF（24 模型 × 7 量化） | ✅ |
 | `06_convert_to_gguf.sh` | HF safetensors → GGUF + 量化 | 選用 |
 | `07_setup_remote_desktop.sh` | XFCE4 + XRDP 遠端桌面 | 選用 |
+| `setup_tw_mirror.sh` | 加入台灣 apt 鏡像（NCTU / NTU / HiNet） | 選用 |
+| `setup_disable_sleep.sh` | 停用 Ubuntu 休眠 / 睡眠（適合遠端桌面） | 選用 |
 | `start.sh` | 啟動聊天 API（port 8000 + 8001） | 執行時 |
 | `start_openclaw.sh` | 啟動 OpenClaw 專用 API（port 8000） | 執行時 |
 | `frontend/serve.sh` | 啟動聊天前端（port 3000，Linux） | 執行時 |
