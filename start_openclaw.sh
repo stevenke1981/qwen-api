@@ -3,7 +3,7 @@
 # 模型：Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M（OpenClaw 指定）
 # 差異：
 #   - 使用 Uncensored 模型，對 coding agent 指令更服從
-#   - ctx-size 32768（OpenClaw agent 對話累積，需要大 context）
+#   - ctx-size 65536（64k，OpenClaw agent 長對話足夠，VRAM ~9.5 GB）
 #   - n-predict 2048（agent 回應不需超長，加快速度）
 #   - 不啟動 fetch proxy（OpenClaw 有自己的 tools）
 set -e
@@ -31,7 +31,7 @@ if [ ! -f "$MODEL_PATH" ]; then
     echo ""
 fi
 N_GPU_LAYERS="${N_GPU_LAYERS:--1}"
-N_CTX=32768       # OpenClaw 需要至少 32k（agent 對話累積快）
+N_CTX=65536       # 64k context，OpenClaw agent 長對話足夠，VRAM 有餘裕
 N_BATCH=1024
 N_UBATCH=512
 CACHE_TYPE_K="${CACHE_TYPE_K:-q8_0}"
