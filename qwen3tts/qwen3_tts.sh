@@ -72,7 +72,7 @@ echo "[1/4] 安裝 qwen-tts 依賴..."
 
 if [ ! -f "$VENV_PYTHON" ]; then
     echo "  建立 .venv..."
-    uv venv .venv
+    uv venv ../.venv
 fi
 
 $VENV_PYTHON -c "import qwen_tts" 2>/dev/null || \
