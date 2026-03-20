@@ -10,7 +10,8 @@
 #   API_KEYS            多 API Key（逗號分隔）
 #
 # 模型 ID 對照：
-#   chat           Qwen3.5-9B Q5_K_M       — 通用對話（預設）
+#   chat           Qwen3.5-4B Q5_K_M       — 通用對話（預設，低 VRAM）
+#   chat-9b        Qwen3.5-9B Q5_K_M       — 通用對話 9B
 #   coder-7b       Qwen2.5-Coder-7B Q8_0  — coding 優化
 #   coder-14b      Qwen2.5-Coder-14B Q4   — coding 高品質
 #   coder-14b-q8   Qwen2.5-Coder-14B Q8   — coding 最高（需 16 GB）

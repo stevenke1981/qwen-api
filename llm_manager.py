@@ -24,7 +24,8 @@ Port: 8000（預設，取代直接執行 llama-server）
   LLAMA_PORT          llama-server 內部 port（預設 8010）
 
 模型 ID 對照：
-  chat           Qwen3.5-9B Q5_K_M       — 通用對話（預設）
+  chat           Qwen3.5-4B Q5_K_M       — 通用對話（預設）
+  chat-9b        Qwen3.5-9B Q5_K_M       — 通用對話 9B
   coder-7b       Qwen2.5-Coder-7B Q8_0  — coding 優化
   coder-14b      Qwen2.5-Coder-14B Q4   — coding 高品質
   coder-14b-q8   Qwen2.5-Coder-14B Q8   — coding 最高（需 16 GB）
@@ -45,12 +46,22 @@ PORT        = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 LLAMA_PORT  = int(os.environ.get("LLAMA_PORT", "8010"))
 LLAMA_URL   = f"http://127.0.0.1:{LLAMA_PORT}"
 MODEL_DIR   = os.path.expanduser(os.environ.get("MODEL_DIR", "~/models"))
-DEFAULT_MODEL = os.environ.get("LLM_DEFAULT_MODEL", "chat")
+DEFAULT_MODEL = os.environ.get("LLM_DEFAULT_MODEL", "chat")  # chat = Qwen3.5-4B
 
 # ── 模型清單 ───────────────────────────────────────────────────────────────────
 MODELS = [
     {
         "id":       "chat",
+        "name":     "Qwen3.5-4B Q5_K_M",
+        "file":     "Qwen_Qwen3.5-4B-Q5_K_M.gguf",
+        "size":     "3.09 GB",
+        "vram":     4,
+        "ctx":      32768,
+        "desc":     "通用對話，思考模式支援，低 VRAM 首選（預設）",
+        "flags":    [],
+    },
+    {
+        "id":       "chat-9b",
         "name":     "Qwen3.5-9B Q5_K_M",
         "file":     "Qwen_Qwen3.5-9B-Q5_K_M.gguf",
         "size":     "6.86 GB",
