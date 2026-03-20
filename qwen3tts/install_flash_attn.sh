@@ -118,20 +118,42 @@ if [ -z "$WHEEL_URL" ]; then
     [ -n "$WHEEL_URL" ] && MATCHED_DESC="(best available for $PY_VER)"
 fi
 
-# ── 安裝 ──────────────────────────────────────────────────────────────────────
-if [ -n "$WHEEL_URL" ]; then
-    FA_VER=$(echo "$WHEEL_URL" | grep -oP 'flash_attn-\K[0-9.]+')
-    echo "✓ 找到預編譯 wheel：flash-attn $FA_VER  [$MATCHED_DESC]"
-    echo "  $WHEEL_URL"
+# ── 安裝並驗證 ────────────────────────────────────────────────────────────────
+build_from_source() {
     echo ""
-    uv pip install "$WHEEL_URL" --python "$VENV_PYTHON"
+    echo "  從原始碼編譯 flash-attn（約 20-40 分鐘）..."
+    uv pip install flash-attn --python "$VENV_PYTHON" --no-build-isolation
+}
+
+install_wheel() {
+    local url="$1"
+    local desc="$2"
+    FA_VER=$(echo "$url" | grep -oP 'flash_attn-\K[0-9.]+')
+    echo "✓ 找到預編譯 wheel：flash-attn $FA_VER  [$desc]"
+    echo "  $url"
+    echo ""
+    uv pip install "$url" --python "$VENV_PYTHON"
+    # 驗證 import（ABI 不符會 ImportError，即使安裝成功）
+    if "$VENV_PYTHON" -c "import flash_attn" 2>/dev/null; then
+        return 0
+    else
+        echo ""
+        echo "  ⚠ wheel 安裝成功但 import 失敗（ABI 與 PyTorch $TORCH_VER 不相容）"
+        echo "  移除並改用原始碼編譯..."
+        uv pip uninstall flash-attn --python "$VENV_PYTHON" -y 2>/dev/null || true
+        return 1
+    fi
+}
+
+if [ -n "$WHEEL_URL" ]; then
+    install_wheel "$WHEEL_URL" "$MATCHED_DESC" || build_from_source
 else
     echo "⚠ 未找到符合的預編譯 wheel"
     echo "  (Python=$PY_VER  PyTorch=$TORCH_VER  CUDA=$CUDA_FULL  ABI=$CXX_ABI)"
     echo ""
     read -rp "  從原始碼編譯？（約 20-40 分鐘）[y/N]：" DO_BUILD
     if [[ "$DO_BUILD" =~ ^[Yy]$ ]]; then
-        uv pip install flash-attn --python "$VENV_PYTHON" --no-build-isolation
+        build_from_source
     else
         echo "已跳過。可稍後執行："
         echo "  bash install_flash_attn.sh"
