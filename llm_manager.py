@@ -678,7 +678,7 @@ async function renderGrid() {
     if (m.active)            btn = '<button class="btn btn-active" disabled>▶ 運行中</button>';
     else if (m.loading)      btn = '<button class="btn btn-loading" disabled>⏳ 載入中...</button>';
     else if (!m.available)   btn = '<button class="btn btn-na" disabled>⚠ 檔案不存在</button>';
-    else                     btn = '<button class="btn btn-activate" onclick="activate(\'' + m.id + '\')">啟用</button>';
+    else                     btn = '<button class="btn btn-activate" onclick="activate(\\\'' + m.id + '\\\')">' + '啟用</button>';
     const avBadge = m.available ? '' : '<span class="badge badge-unavailable">未下載</span>';
     return '<div class="card' + (m.active?' active':'') + (m.loading?' loading-card':'') + (!m.available?' unavailable':'') + '">'
       + '<div class="card-name">' + m.name + '</div>'
@@ -713,8 +713,8 @@ async function runScan() {
       const isMatched = !!f.matched_id;
       const badge = isMatched ? '<span class="scan-badge">已在清單</span>' : '';
       const btn = isMatched
-        ? '<button class="btn-load" onclick="activate(\'' + f.matched_id + '\')">' + (f.matched_id ? '啟用' : '載入') + '</button>'
-        : '<button class="btn-load" onclick="loadFile(\'' + f.file + '\')">載入</button>';
+        ? '<button class="btn-load" onclick="activate(\\\'' + f.matched_id + '\\\')">' + '啟用</button>'
+        : '<button class="btn-load" onclick="loadFile(\\\'' + f.file + '\\\')">' + '載入</button>';
       return '<div class="scan-card' + (isMatched ? ' matched' : '') + '">'
         + '<span class="scan-fname">' + f.file + '</span>'
         + '<span class="scan-size">' + f.size + '</span>'
