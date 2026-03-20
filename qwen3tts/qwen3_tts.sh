@@ -76,15 +76,15 @@ if [ ! -f "$VENV_PYTHON" ]; then
 fi
 
 $VENV_PYTHON -c "import qwen_tts" 2>/dev/null || \
-    uv pip install -U qwen-tts --quiet
+    uv pip install -U qwen-tts --python "$VENV_PYTHON" --quiet
 $VENV_PYTHON -c "import soundfile" 2>/dev/null || \
-    uv pip install soundfile --quiet
+    uv pip install soundfile --python "$VENV_PYTHON" --quiet
 echo "  ✓ qwen-tts 安裝完成"
 
 echo ""
 read -rp "  安裝 flash-attn（加快推理，需從原始碼編譯，約 20-40 分鐘，可選擇跳過）？[y/N]：" FA_INSTALL
 if [[ "$FA_INSTALL" =~ ^[Yy]$ ]]; then
-    uv pip install -U flash-attn --no-build-isolation || echo "  ⚠ flash-attn 安裝失敗，繼續（可省略）"
+    uv pip install -U flash-attn --python "$VENV_PYTHON" --no-build-isolation || echo "  ⚠ flash-attn 安裝失敗，繼續（可省略）"
 fi
 
 # ── 步驟 2：下載模型 ──────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ echo "[2/4] 下載模型 $SEL_REPO ..."
 
 export HF_HUB_ENABLE_HF_TRANSFER=1
 $VENV_PYTHON -c "import huggingface_hub" 2>/dev/null || \
-    uv pip install huggingface_hub hf_transfer --quiet
+    uv pip install huggingface_hub hf_transfer --python "$VENV_PYTHON" --quiet
 
 $VENV_PYTHON - <<PYEOF
 from huggingface_hub import snapshot_download
