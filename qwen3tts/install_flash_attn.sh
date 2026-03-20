@@ -53,7 +53,7 @@ CXX_ABI=$("$VENV_PYTHON" -c \
 
 if [ -z "$TORCH_VER" ] || [ -z "$CUDA_FULL" ]; then
     echo "❌ 無法偵測 PyTorch / CUDA 版本，請確認 torch 已安裝在 venv 中："
-    echo "   $VENV_PYTHON -m pip install torch"
+    echo "   uv pip install torch --python "$VENV_PYTHON""
     exit 1
 fi
 
@@ -72,7 +72,7 @@ RELEASES=$(curl -sf \
 
 if [ -z "$RELEASES" ]; then
     echo "⚠ 無法連線 GitHub API（網路或限速），改用原始碼編譯..."
-    "$VENV_PYTHON" -m pip install flash-attn --no-build-isolation
+    uv pip install flash-attn --python "$VENV_PYTHON" --no-build-isolation
     exit 0
 fi
 
@@ -124,14 +124,14 @@ if [ -n "$WHEEL_URL" ]; then
     echo "✓ 找到預編譯 wheel：flash-attn $FA_VER  [$MATCHED_DESC]"
     echo "  $WHEEL_URL"
     echo ""
-    "$VENV_PYTHON" -m pip install "$WHEEL_URL"
+    uv pip install "$WHEEL_URL" --python "$VENV_PYTHON"
 else
     echo "⚠ 未找到符合的預編譯 wheel"
     echo "  (Python=$PY_VER  PyTorch=$TORCH_VER  CUDA=$CUDA_FULL  ABI=$CXX_ABI)"
     echo ""
     read -rp "  從原始碼編譯？（約 20-40 分鐘）[y/N]：" DO_BUILD
     if [[ "$DO_BUILD" =~ ^[Yy]$ ]]; then
-        "$VENV_PYTHON" -m pip install flash-attn --no-build-isolation
+        uv pip install flash-attn --python "$VENV_PYTHON" --no-build-isolation
     else
         echo "已跳過。可稍後執行："
         echo "  bash install_flash_attn.sh"
