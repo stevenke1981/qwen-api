@@ -62,18 +62,18 @@ echo "[1/4] 安裝 qwen-asr 依賴..."
 # 確認 .venv 存在
 if [ ! -f "$VENV_PYTHON" ]; then
     echo "  建立 .venv..."
-    uv venv .venv
+    uv venv ../.venv
 fi
 
 $VENV_PYTHON -c "import qwen_asr" 2>/dev/null || \
-    uv pip install -U qwen-asr --quiet
+    uv pip install -U qwen-asr --python "$VENV_PYTHON" --quiet
 echo "  ✓ qwen-asr 安裝完成"
 
 # Flash Attention（可選，加快推理）
 echo ""
-read -rp "  安裝 flash-attn（加快推理，需從原始碼編譯，約 20-40 分鐘，可選擇跳過）？[y/N]：" FA_INSTALL
+read -rp "  安裝 flash-attn（加快推理，可選擇跳過）？[y/N]：" FA_INSTALL
 if [[ "$FA_INSTALL" =~ ^[Yy]$ ]]; then
-    uv pip install -U flash-attn --no-build-isolation || echo "  ⚠ flash-attn 安裝失敗，繼續（可省略）"
+    bash "$SCRIPT_DIR/../qwen3tts/install_flash_attn.sh" "$VENV_PYTHON" || echo "  ⚠ flash-attn 安裝失敗，繼續（可省略）"
 fi
 
 # ── 步驟 2：下載模型 ──────────────────────────────────────────────────────────
@@ -83,7 +83,9 @@ echo "  （HuggingFace 會快取至 ~/.cache/huggingface，首次下載需時間
 
 export HF_HUB_ENABLE_HF_TRANSFER=1
 $VENV_PYTHON -c "import huggingface_hub" 2>/dev/null || \
-    uv pip install huggingface_hub hf_transfer --quiet
+    uv pip install huggingface_hub --python "$VENV_PYTHON" --quiet
+$VENV_PYTHON -c "import hf_transfer" 2>/dev/null || \
+    uv pip install hf_transfer --python "$VENV_PYTHON" --quiet
 
 $VENV_PYTHON - <<PYEOF
 from huggingface_hub import snapshot_download
