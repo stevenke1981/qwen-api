@@ -112,37 +112,40 @@ _async_lock = asyncio.Lock()
 
 # ── 系統資訊（VRAM / GPU% / CPU% / RAM）──────────────────────────────────────
 def sys_info() -> dict:
-    info: dict = {}
-    # VRAM
-    if torch.cuda.is_available():
-        prop  = torch.cuda.get_device_properties(0)
-        total = prop.total_memory
-        alloc = torch.cuda.memory_allocated(0)
-        info["vram"] = {
-            "total_gb": round(total / 1024**3, 1),
-            "used_gb":  round(alloc  / 1024**3, 1),
-            "free_gb":  round((total - alloc) / 1024**3, 1),
-            "device":   prop.name,
-        }
-        try:
-            info["gpu_pct"] = torch.cuda.utilization(0)
-        except Exception:
-            info["gpu_pct"] = None
-    else:
-        info["vram"]    = {"total_gb": 0, "used_gb": 0, "free_gb": 0, "device": "N/A"}
-        info["gpu_pct"] = None
+    info: dict = {
+        "vram":    {"total_gb": 0, "used_gb": 0, "free_gb": 0, "device": "N/A"},
+        "gpu_pct": None,
+        "cpu_pct": None,
+        "ram":     None,
+    }
+    try:
+        if torch.cuda.is_available():
+            prop  = torch.cuda.get_device_properties(0)
+            total = prop.total_memory
+            alloc = torch.cuda.memory_allocated(0)
+            info["vram"] = {
+                "total_gb": round(total / 1024**3, 1),
+                "used_gb":  round(alloc  / 1024**3, 1),
+                "free_gb":  round((total - alloc) / 1024**3, 1),
+                "device":   prop.name,
+            }
+            try:
+                info["gpu_pct"] = torch.cuda.utilization()
+            except Exception:
+                info["gpu_pct"] = None
+    except Exception:
+        pass
     try:
         import psutil
         info["cpu_pct"] = psutil.cpu_percent(interval=None)
         vm = psutil.virtual_memory()
         info["ram"] = {
-            "total_gb": round(vm.total   / 1024**3, 1),
-            "used_gb":  round(vm.used    / 1024**3, 1),
+            "total_gb": round(vm.total / 1024**3, 1),
+            "used_gb":  round(vm.used  / 1024**3, 1),
             "pct":      vm.percent,
         }
-    except ImportError:
-        info["cpu_pct"] = None
-        info["ram"]     = None
+    except Exception:
+        pass
     return info
 
 # ── 模型操作 ───────────────────────────────────────────────────────────────────
@@ -485,7 +488,9 @@ MANAGER_UI = """<!DOCTYPE html>
 <script>
 async function fetchStatus() {
   try {
-    const s = await (await fetch('/api/status')).json();
+    const res = await fetch('/api/status');
+    if (!res.ok) { console.error('[ASR] /api/status', res.status, await res.text()); return null; }
+    const s = await res.json();
     const dot = document.getElementById('status-dot');
     const txt = document.getElementById('status-text');
     if (s.loading) {
@@ -526,7 +531,7 @@ async function fetchStatus() {
     document.getElementById('info-url').textContent = location.origin;
     document.getElementById('info-auth').textContent = s.auth_enabled ? '已啟用（API Key）' : '未啟用';
     return s;
-  } catch(e) { return null; }
+  } catch(e) { console.error('[ASR] fetchStatus error:', e); return null; }
 }
 
 async function renderGrid() {
