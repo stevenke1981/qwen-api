@@ -201,6 +201,53 @@ def model_path(m: dict) -> str:
 def model_available(m: dict) -> bool:
     return os.path.exists(model_path(m))
 
+def scan_model_dir() -> list[dict]:
+    """掃描 MODEL_DIR，回傳所有 .gguf 檔案（含是否已在 MODELS 清單）"""
+    if not os.path.isdir(MODEL_DIR):
+        return []
+    known_files = {m["file"]: m["id"] for m in MODELS}
+    results = []
+    for fname in sorted(os.listdir(MODEL_DIR)):
+        if not fname.endswith(".gguf"):
+            continue
+        fpath = os.path.join(MODEL_DIR, fname)
+        try:
+            size_gb = round(os.path.getsize(fpath) / 1024**3, 2)
+        except OSError:
+            size_gb = 0
+        matched_id = known_files.get(fname)
+        results.append({
+            "file":       fname,
+            "size_gb":    size_gb,
+            "size":       f"{size_gb} GB",
+            "matched_id": matched_id,
+            "path":       fpath,
+        })
+    return results
+
+def _dyn_id(fname: str) -> str:
+    """從檔名產生動態模型 ID，例：Qwen3.5-4B-Q5_K_M.gguf → dyn-Qwen3.5-4B-Q5_K_M"""
+    return "dyn-" + fname.removesuffix(".gguf")
+
+def _register_dyn(fname: str) -> dict:
+    """將掃描到的 .gguf 檔動態加入 MODEL_MAP（若已存在則直接回傳）"""
+    mid = _dyn_id(fname)
+    if mid in MODEL_MAP:
+        return MODEL_MAP[mid]
+    meta = {
+        "id":    mid,
+        "name":  fname.removesuffix(".gguf"),
+        "file":  fname,
+        "size":  "—",
+        "vram":  0,
+        "ctx":   32768,
+        "desc":  "掃描自模型目錄",
+        "flags": [],
+    }
+    MODELS.append(meta)
+    MODEL_MAP[mid] = meta
+    return meta
+
 # ── llama-server 進程管理 ──────────────────────────────────────────────────────
 def _kill_current():
     p = state["process"]
@@ -275,7 +322,10 @@ def _load_sync(model_id: str):
 
 async def _bg_load(model_id: str):
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _load_sync, model_id)
+    try:
+        await loop.run_in_executor(None, _load_sync, model_id)
+    except Exception:
+        pass  # 錯誤已存入 state["error"]，不需要再拋出
 
 async def ensure_model(model_id: str):
     if state["active_id"] == model_id and state["process"] and state["process"].poll() is None:
@@ -296,7 +346,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def _startup():
-    asyncio.create_task(_bg_load(DEFAULT_MODEL))
+    meta = MODEL_MAP.get(DEFAULT_MODEL)
+    if meta and os.path.exists(model_path(meta)):
+        asyncio.create_task(_bg_load(DEFAULT_MODEL))
+    else:
+        print(f"[LLM] 預載模型 '{DEFAULT_MODEL}' 檔案不存在，跳過自動載入")
+        print(f"[LLM] 請至管理 UI 掃描目錄後選擇可用模型")
 
 @app.on_event("shutdown")
 async def _shutdown():
@@ -406,6 +461,31 @@ async def api_activate(model_id: str):
     asyncio.create_task(_bg_load(model_id))
     return {"status": "loading", "model_id": model_id}
 
+@app.get("/api/scan")
+def api_scan():
+    """掃描 MODEL_DIR，回傳所有 .gguf 檔案清單"""
+    files = scan_model_dir()
+    return {
+        "model_dir": MODEL_DIR,
+        "count":     len(files),
+        "files":     files,
+    }
+
+@app.post("/api/load-file")
+async def api_load_file(body: dict):
+    """直接載入掃描到的 .gguf 檔（動態註冊後啟動）"""
+    fname = body.get("file", "").strip()
+    if not fname or not fname.endswith(".gguf"):
+        raise HTTPException(400, "請提供有效的 .gguf 檔名")
+    fpath = os.path.join(MODEL_DIR, fname)
+    if not os.path.exists(fpath):
+        raise HTTPException(404, f"檔案不存在：{fpath}")
+    if state["loading"]:
+        raise HTTPException(409, "另一個模型正在載入中，請稍候")
+    meta = _register_dyn(fname)
+    asyncio.create_task(_bg_load(meta["id"]))
+    return {"status": "loading", "model_id": meta["id"], "file": fname}
+
 # ── 管理 UI ────────────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def ui():
@@ -467,6 +547,23 @@ MANAGER_UI = """<!DOCTYPE html>
   .btn-active{background:#713f12;color:#fde68a;cursor:default}
   .btn-loading{background:#1e3a8a;color:#93c5fd;cursor:wait}
   .btn-na{background:#1e293b;color:#64748b;cursor:not-allowed}
+
+  .scan-section{margin-bottom:24px}
+  .scan-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .scan-title{font-size:.95rem;font-weight:600;color:#f1f5f9}
+  .btn-scan{background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:8px;font-size:.8rem;cursor:pointer;transition:all .2s}
+  .btn-scan:hover{border-color:#60a5fa;color:#60a5fa}
+  .scan-dir{font-size:.75rem;color:#475569;font-family:monospace}
+  .scan-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+  .scan-card{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .scan-card.matched{border-color:#334155;opacity:.6}
+  .scan-fname{font-size:.78rem;color:#e2e8f0;word-break:break-all;flex:1}
+  .scan-size{font-size:.72rem;color:#64748b;flex-shrink:0;margin-right:8px}
+  .scan-badge{font-size:.68rem;padding:2px 7px;border-radius:8px;background:#14532d;color:#86efac;flex-shrink:0}
+  .btn-load{padding:5px 12px;border-radius:6px;border:none;background:#f59e0b;color:#000;font-size:.75rem;font-weight:600;cursor:pointer;flex-shrink:0}
+  .btn-load:hover{opacity:.85}
+  .btn-load:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+  .scan-empty{color:#475569;font-size:.82rem;padding:12px 0}
 </style>
 </head>
 <body>
@@ -509,6 +606,15 @@ MANAGER_UI = """<!DOCTYPE html>
 </div>
 
 <div class="grid" id="model-grid"></div>
+
+<div class="scan-section">
+  <div class="scan-header">
+    <span class="scan-title">掃描模型目錄</span>
+    <button class="btn-scan" onclick="runScan()">🔍 掃描</button>
+    <span class="scan-dir" id="scan-dir"></span>
+  </div>
+  <div class="scan-list" id="scan-list"><p class="scan-empty">點擊「掃描」列出目錄中所有 .gguf 檔案</p></div>
+</div>
 
 <script>
 async function fetchStatus() {
@@ -591,6 +697,43 @@ async function activate(id) {
   const r = await fetch('/api/models/' + id + '/activate', {method:'POST'});
   if (!r.ok) { const j = await r.json(); alert(j.detail || '切換失敗'); return; }
   renderGrid();
+}
+
+async function runScan() {
+  document.getElementById('scan-list').innerHTML = '<p class="scan-empty">掃描中...</p>';
+  try {
+    const res = await fetch('/api/scan');
+    const data = await res.json();
+    document.getElementById('scan-dir').textContent = data.model_dir;
+    if (!data.files || data.files.length === 0) {
+      document.getElementById('scan-list').innerHTML = '<p class="scan-empty">目錄中沒有 .gguf 檔案</p>';
+      return;
+    }
+    document.getElementById('scan-list').innerHTML = data.files.map(f => {
+      const isMatched = !!f.matched_id;
+      const badge = isMatched ? '<span class="scan-badge">已在清單</span>' : '';
+      const btn = isMatched
+        ? '<button class="btn-load" onclick="activate(\'' + f.matched_id + '\')">' + (f.matched_id ? '啟用' : '載入') + '</button>'
+        : '<button class="btn-load" onclick="loadFile(\'' + f.file + '\')">載入</button>';
+      return '<div class="scan-card' + (isMatched ? ' matched' : '') + '">'
+        + '<span class="scan-fname">' + f.file + '</span>'
+        + '<span class="scan-size">' + f.size + '</span>'
+        + badge + btn + '</div>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('scan-list').innerHTML = '<p class="scan-empty">掃描失敗：' + e.message + '</p>';
+  }
+}
+
+async function loadFile(fname) {
+  const r = await fetch('/api/load-file', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({file: fname}),
+  });
+  if (!r.ok) { const j = await r.json(); alert(j.detail || '載入失敗'); return; }
+  renderGrid();
+  runScan();
 }
 
 renderGrid();
