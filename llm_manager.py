@@ -360,7 +360,7 @@ async def _shutdown():
 # ── 反向代理（/v1/*）────────────────────────────────────────────────────────────
 PROXY_PATHS = {"/v1/", "/props", "/slots", "/metrics", "/lora-adapters"}
 
-@app.api_route("/v1/{path:path}", methods=["GET","POST","PUT","DELETE","OPTIONS"])
+@app.api_route("/v1/{path:path}", methods=["GET","POST","PUT","DELETE","OPTIONS"], include_in_schema=False)
 async def proxy_v1(path: str, request: Request, _: None = Depends(verify_key)):
     if state["process"] is None or state["process"].poll() is not None:
         raise HTTPException(503, "llama-server 尚未啟動，請稍候或切換模型")
