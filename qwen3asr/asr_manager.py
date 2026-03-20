@@ -110,19 +110,40 @@ state: dict = {
 _load_lock  = threading.Lock()
 _async_lock = asyncio.Lock()
 
-# ── VRAM ───────────────────────────────────────────────────────────────────────
-def vram_info() -> dict:
-    if not torch.cuda.is_available():
-        return {"total_gb": 0, "used_gb": 0, "free_gb": 0}
-    prop  = torch.cuda.get_device_properties(0)
-    total = prop.total_memory
-    alloc = torch.cuda.memory_allocated(0)
-    return {
-        "total_gb": round(total / 1024**3, 1),
-        "used_gb":  round(alloc  / 1024**3, 1),
-        "free_gb":  round((total - alloc) / 1024**3, 1),
-        "device":   prop.name,
-    }
+# ── 系統資訊（VRAM / GPU% / CPU% / RAM）──────────────────────────────────────
+def sys_info() -> dict:
+    info: dict = {}
+    # VRAM
+    if torch.cuda.is_available():
+        prop  = torch.cuda.get_device_properties(0)
+        total = prop.total_memory
+        alloc = torch.cuda.memory_allocated(0)
+        info["vram"] = {
+            "total_gb": round(total / 1024**3, 1),
+            "used_gb":  round(alloc  / 1024**3, 1),
+            "free_gb":  round((total - alloc) / 1024**3, 1),
+            "device":   prop.name,
+        }
+        try:
+            info["gpu_pct"] = torch.cuda.utilization(0)
+        except Exception:
+            info["gpu_pct"] = None
+    else:
+        info["vram"]    = {"total_gb": 0, "used_gb": 0, "free_gb": 0, "device": "N/A"}
+        info["gpu_pct"] = None
+    try:
+        import psutil
+        info["cpu_pct"] = psutil.cpu_percent(interval=None)
+        vm = psutil.virtual_memory()
+        info["ram"] = {
+            "total_gb": round(vm.total   / 1024**3, 1),
+            "used_gb":  round(vm.used    / 1024**3, 1),
+            "pct":      vm.percent,
+        }
+    except ImportError:
+        info["cpu_pct"] = None
+        info["ram"]     = None
+    return info
 
 # ── 模型操作 ───────────────────────────────────────────────────────────────────
 def _unload():
@@ -315,7 +336,7 @@ def api_status():
         "error":        state["error"],
         "timestamps":   state["timestamps"],
         "auth_enabled": AUTH_ENABLED,
-        "vram":         vram_info(),
+        **sys_info(),
     }
 
 @app.post("/api/models/{model_id}/activate")
@@ -351,11 +372,18 @@ MANAGER_UI = """<!DOCTYPE html>
   .info-item{font-size:.82rem;color:#94a3b8}
   .info-item b{color:#e2e8f0}
 
-  .vram-bar{background:#1e293b;border-radius:8px;padding:14px 18px;margin-bottom:24px;display:flex;align-items:center;gap:16px}
-  .vram-label{color:#94a3b8;font-size:.8rem;white-space:nowrap}
-  .bar-wrap{flex:1;background:#334155;border-radius:4px;height:8px;overflow:hidden}
-  .bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#10b981,#3b82f6);transition:width .5s}
-  .vram-nums{font-size:.8rem;color:#94a3b8;white-space:nowrap}
+  .gauges{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:24px}
+  .gauge{background:#1e293b;border-radius:8px;padding:12px 16px}
+  .gauge-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .gauge-label{color:#94a3b8;font-size:.78rem}
+  .gauge-val{font-size:.78rem;color:#e2e8f0;font-weight:600}
+  .bar-wrap{background:#334155;border-radius:4px;height:6px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:4px;transition:width .5s}
+  .bar-vram{background:linear-gradient(90deg,#3b82f6,#8b5cf6)}
+  .bar-gpu {background:linear-gradient(90deg,#10b981,#06b6d4)}
+  .bar-cpu {background:linear-gradient(90deg,#f59e0b,#ef4444)}
+  .bar-ram {background:linear-gradient(90deg,#8b5cf6,#ec4899)}
+  .gauge-sub{font-size:.72rem;color:#475569;margin-top:4px}
 
   .status-chip{display:inline-flex;align-items:center;gap:6px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:6px 14px;font-size:.8rem;margin-bottom:24px}
   .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0}
@@ -403,10 +431,27 @@ MANAGER_UI = """<!DOCTYPE html>
   <div class="info-item">文件 <a href="/docs" style="color:#60a5fa">/docs</a></div>
 </div>
 
-<div class="vram-bar">
-  <span class="vram-label">GPU VRAM</span>
-  <div class="bar-wrap"><div class="bar-fill" id="vram-fill" style="width:0%"></div></div>
-  <span class="vram-nums" id="vram-nums">—</span>
+<div class="gauges">
+  <div class="gauge">
+    <div class="gauge-head"><span class="gauge-label">GPU VRAM</span><span class="gauge-val" id="vram-val">—</span></div>
+    <div class="bar-wrap"><div class="bar-fill bar-vram" id="vram-fill" style="width:0%"></div></div>
+    <div class="gauge-sub" id="vram-dev">—</div>
+  </div>
+  <div class="gauge">
+    <div class="gauge-head"><span class="gauge-label">GPU 使用率</span><span class="gauge-val" id="gpu-val">—</span></div>
+    <div class="bar-wrap"><div class="bar-fill bar-gpu" id="gpu-fill" style="width:0%"></div></div>
+    <div class="gauge-sub" id="gpu-sub">—</div>
+  </div>
+  <div class="gauge">
+    <div class="gauge-head"><span class="gauge-label">CPU 使用率</span><span class="gauge-val" id="cpu-val">—</span></div>
+    <div class="bar-wrap"><div class="bar-fill bar-cpu" id="cpu-fill" style="width:0%"></div></div>
+    <div class="gauge-sub" id="cpu-sub">—</div>
+  </div>
+  <div class="gauge">
+    <div class="gauge-head"><span class="gauge-label">記憶體 RAM</span><span class="gauge-val" id="ram-val">—</span></div>
+    <div class="bar-wrap"><div class="bar-fill bar-ram" id="ram-fill" style="width:0%"></div></div>
+    <div class="gauge-sub" id="ram-sub">—</div>
+  </div>
 </div>
 
 <div class="status-chip">
@@ -460,8 +505,23 @@ async function fetchStatus() {
     if (s.vram && s.vram.total_gb > 0) {
       const pct = (s.vram.used_gb / s.vram.total_gb * 100).toFixed(0);
       document.getElementById('vram-fill').style.width = pct + '%';
-      document.getElementById('vram-nums').textContent =
-        `${s.vram.used_gb} / ${s.vram.total_gb} GB (${pct}%)  ${s.vram.device || ''}`;
+      document.getElementById('vram-val').textContent = `${s.vram.used_gb} / ${s.vram.total_gb} GB (${pct}%)`;
+      document.getElementById('vram-dev').textContent = s.vram.device || '—';
+    }
+    if (s.gpu_pct != null) {
+      document.getElementById('gpu-fill').style.width = s.gpu_pct + '%';
+      document.getElementById('gpu-val').textContent = s.gpu_pct + '%';
+      document.getElementById('gpu-sub').textContent = s.gpu_pct > 80 ? '高負載' : s.gpu_pct > 40 ? '中負載' : '低負載';
+    }
+    if (s.cpu_pct != null) {
+      document.getElementById('cpu-fill').style.width = s.cpu_pct + '%';
+      document.getElementById('cpu-val').textContent = s.cpu_pct.toFixed(1) + '%';
+      document.getElementById('cpu-sub').textContent = s.cpu_pct > 80 ? '高負載' : s.cpu_pct > 40 ? '中負載' : '低負載';
+    }
+    if (s.ram) {
+      document.getElementById('ram-fill').style.width = s.ram.pct + '%';
+      document.getElementById('ram-val').textContent = `${s.ram.used_gb} / ${s.ram.total_gb} GB (${s.ram.pct}%)`;
+      document.getElementById('ram-sub').textContent = s.ram.pct > 85 ? '記憶體緊張' : '正常';
     }
     document.getElementById('info-url').textContent = location.origin;
     document.getElementById('info-auth').textContent = s.auth_enabled ? '已啟用（API Key）' : '未啟用';
