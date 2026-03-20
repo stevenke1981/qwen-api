@@ -89,9 +89,9 @@ $VENV_PYTHON -c "import soundfile" 2>/dev/null || \
 echo "  ✓ qwen-tts 安裝完成"
 
 echo ""
-read -rp "  安裝 flash-attn（加快推理，需從原始碼編譯，約 20-40 分鐘，可選擇跳過）？[y/N]：" FA_INSTALL
+read -rp "  安裝 flash-attn（加快推理，可選擇跳過）？[y/N]：" FA_INSTALL
 if [[ "$FA_INSTALL" =~ ^[Yy]$ ]]; then
-    uv pip install -U flash-attn --python "$VENV_PYTHON" --no-build-isolation || echo "  ⚠ flash-attn 安裝失敗，繼續（可省略）"
+    bash "$SCRIPT_DIR/install_flash_attn.sh" "$VENV_PYTHON" || echo "  ⚠ flash-attn 安裝失敗，繼續（可省略）"
 fi
 
 # ── 步驟 2：下載模型 ──────────────────────────────────────────────────────────
