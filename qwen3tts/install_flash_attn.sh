@@ -77,30 +77,51 @@ if [ -z "$RELEASES" ]; then
 fi
 
 # ── 比對 wheel ─────────────────────────────────────────────────────────────────
-# 嘗試順序：完整 CUDA 版本 → 主版本號 → 不含 ABI（fallback）
+# CUDA 12.x wheel 向後相容，PyTorch 版本也可降版使用
+# 嘗試順序：完整比對 → cu major → 降 CUDA/Torch fallback → 任意 Python 匹配
+
+ALL_WHEELS=$(echo "$RELEASES" \
+    | grep -oP '"browser_download_url":\s*"\K[^"]+\.whl' \
+    | grep "linux_x86_64" || true)
+
 find_wheel() {
-    local pattern="$1"
-    echo "$RELEASES" \
-        | grep -oP '"browser_download_url":\s*"\K[^"]+\.whl' \
-        | grep "$pattern" \
-        | head -1
+    echo "$ALL_WHEELS" | grep "$1" | head -1
 }
 
+# Fallback CUDA 版本清單（從新到舊）
+CUDA_FALLBACKS=("$CUDA_FULL" "$CUDA_MAJOR" "cu126" "cu124" "cu123" "cu122" "cu121" "cu118")
+# Fallback PyTorch 版本清單（從新到舊）
+TORCH_FALLBACKS=("$TORCH_VER" "2.7" "2.6" "2.5" "2.4" "2.3")
+
 WHEEL_URL=""
-for CU in "$CUDA_FULL" "$CUDA_MAJOR"; do
-    PATTERN="${CU}torch${TORCH_VER}cxx11abi${CXX_ABI}-${PY_VER}"
-    WHEEL_URL=$(find_wheel "$PATTERN")
-    [ -n "$WHEEL_URL" ] && break
-    # 嘗試不帶 cxx11abi 欄位
-    PATTERN="${CU}torch${TORCH_VER}-${PY_VER}"
-    WHEEL_URL=$(find_wheel "$PATTERN")
-    [ -n "$WHEEL_URL" ] && break
+MATCHED_DESC=""
+
+# 嘗試 CUDA × PyTorch 組合
+for CU in "${CUDA_FALLBACKS[@]}"; do
+    for TV in "${TORCH_FALLBACKS[@]}"; do
+        for PATTERN in \
+            "${CU}torch${TV}cxx11abi${CXX_ABI}-${PY_VER}" \
+            "${CU}torch${TV}-${PY_VER}"
+        do
+            WHEEL_URL=$(find_wheel "$PATTERN")
+            if [ -n "$WHEEL_URL" ]; then
+                MATCHED_DESC="$PATTERN"
+                break 3
+            fi
+        done
+    done
 done
+
+# 最後 fallback：任何符合 Python 版本的 wheel
+if [ -z "$WHEEL_URL" ]; then
+    WHEEL_URL=$(find_wheel "${PY_VER}-${PY_VER}-linux_x86_64")
+    [ -n "$WHEEL_URL" ] && MATCHED_DESC="(best available for $PY_VER)"
+fi
 
 # ── 安裝 ──────────────────────────────────────────────────────────────────────
 if [ -n "$WHEEL_URL" ]; then
     FA_VER=$(echo "$WHEEL_URL" | grep -oP 'flash_attn-\K[0-9.]+')
-    echo "✓ 找到預編譯 wheel：flash-attn $FA_VER"
+    echo "✓ 找到預編譯 wheel：flash-attn $FA_VER  [$MATCHED_DESC]"
     echo "  $WHEEL_URL"
     echo ""
     "$VENV_PYTHON" -m pip install "$WHEEL_URL"
