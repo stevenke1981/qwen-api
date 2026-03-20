@@ -70,6 +70,13 @@ SEL_TYPE=$(echo "$SEL_TYPE" | xargs)
 echo ""
 echo "[1/4] 安裝 qwen-tts 依賴..."
 
+# 確認 sox 已安裝（音訊處理必要）
+if ! command -v sox &>/dev/null; then
+    echo "  安裝 sox（音訊處理工具）..."
+    sudo apt-get install -y sox libsox-fmt-all 2>/dev/null || \
+        echo "  ⚠ 無法自動安裝 sox，請手動執行：sudo apt-get install sox libsox-fmt-all"
+fi
+
 if [ ! -f "$VENV_PYTHON" ]; then
     echo "  建立 .venv..."
     uv venv ../.venv
