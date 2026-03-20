@@ -588,11 +588,11 @@ async function transcribe() {
     const r = await fetch('/v1/audio/transcriptions', {method:'POST', body: fd});
     if (!r.ok) { err.textContent = (await r.json()).detail || '辨識失敗'; return; }
     const j = await r.json();
-    let out = `語言：${j.language || '—'}\n文字：${j.text}`;
+    let out = `語言：${j.language || '—'}\\n文字：${j.text}`;
     if (j.segments?.length) {
-      out += '\n\n時間戳記：\n' + j.segments.map(s =>
+      out += '\\n\\n時間戳記：\\n' + j.segments.map(s =>
         `  [${s.start.toFixed(2)}s - ${s.end.toFixed(2)}s] ${s.text}`
-      ).join('\n');
+      ).join('\\n');
     }
     res.textContent = out; res.style.display = 'block';
   } catch(e) { err.textContent = e.message; }
