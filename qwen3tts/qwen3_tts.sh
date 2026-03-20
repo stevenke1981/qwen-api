@@ -93,7 +93,9 @@ echo "[2/4] 下載模型 $SEL_REPO ..."
 
 export HF_HUB_ENABLE_HF_TRANSFER=1
 $VENV_PYTHON -c "import huggingface_hub" 2>/dev/null || \
-    uv pip install huggingface_hub hf_transfer --python "$VENV_PYTHON" --quiet
+    uv pip install huggingface_hub --python "$VENV_PYTHON" --quiet
+$VENV_PYTHON -c "import hf_transfer" 2>/dev/null || \
+    uv pip install hf_transfer --python "$VENV_PYTHON" --quiet
 
 $VENV_PYTHON - <<PYEOF
 from huggingface_hub import snapshot_download
