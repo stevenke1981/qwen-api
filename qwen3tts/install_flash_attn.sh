@@ -123,7 +123,7 @@ build_from_source() {
     echo ""
     echo "  從原始碼編譯 flash-attn（約 20-40 分鐘）..."
     # 先強制移除舊版（含損壞的 wheel），再重新編譯
-    uv pip uninstall flash-attn --python "$VENV_PYTHON" -y 2>/dev/null || true
+    uv pip uninstall flash-attn --python "$VENV_PYTHON" 2>/dev/null || true
     uv pip install flash-attn --python "$VENV_PYTHON" --no-build-isolation --reinstall
 }
 
@@ -142,7 +142,7 @@ install_wheel() {
         echo ""
         echo "  ⚠ wheel 安裝成功但 import 失敗（ABI 與 PyTorch $TORCH_VER 不相容）"
         echo "  移除並改用原始碼編譯..."
-        uv pip uninstall flash-attn --python "$VENV_PYTHON" -y 2>/dev/null || true
+        uv pip uninstall flash-attn --python "$VENV_PYTHON" 2>/dev/null || true
         return 1
     fi
 }
