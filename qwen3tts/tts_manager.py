@@ -201,11 +201,13 @@ app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
 
+async def _startup_load(model_id: str):
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _load_sync, model_id)
+
 @app.on_event("startup")
 async def _startup():
-    asyncio.create_task(
-        asyncio.get_event_loop().run_in_executor(None, _load_sync, DEFAULT_MODEL)
-    )
+    asyncio.create_task(_startup_load(DEFAULT_MODEL))
 
 # ── OpenAI 相容端點 ────────────────────────────────────────────────────────────
 class SpeechRequest(BaseModel):
@@ -351,8 +353,7 @@ async def api_activate(model_id: str):
         raise HTTPException(409, "另一個模型正在載入中，請稍候")
     if state["active_id"] == model_id and state["model"] is not None:
         return {"status": "already_active", "model_id": model_id}
-    loop = asyncio.get_event_loop()
-    asyncio.create_task(loop.run_in_executor(None, _load_sync, model_id))
+    asyncio.create_task(_startup_load(model_id))
     return {"status": "loading", "model_id": model_id}
 
 # ── 管理 UI ────────────────────────────────────────────────────────────────────
